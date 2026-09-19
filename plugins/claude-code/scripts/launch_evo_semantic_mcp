@@ -1,0 +1,45 @@
+#!/bin/sh
+# Launcher for the EvoOntology semantic MCP server (POSIX).
+# Finds a Python interpreter without requiring `pip install evoontology`,
+# forces UTF-8 stdio, and runs the bundled server by absolute path so it
+# works from any session cwd.
+
+export PYTHONIOENCODING=utf-8
+export PYTHONUTF8=1
+
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+SERVER="$SCRIPT_DIR/../evoontology/runtime/mcp_server.py"
+
+if [ -n "${EVO_ONTOLOGY_DEBUG:-}" ]; then
+  {
+    echo "--- evo-semantic launch $(date) ---"
+    echo "cwd=$(pwd)"
+    echo "server=$SERVER"
+    env
+  } >> "${TMPDIR:-/tmp}/evo-semantic-launch.log"
+fi
+
+if [ ! -f "$SERVER" ]; then
+  echo "evo-semantic: bundled MCP server not found at $SERVER" >&2
+  exit 66
+fi
+
+if [ -n "${EVO_ONTOLOGY_PYTHON:-}" ] && [ -x "${EVO_ONTOLOGY_PYTHON}" ]; then
+  exec "${EVO_ONTOLOGY_PYTHON}" "$SERVER" "$@"
+fi
+
+RUNTIME_PY="$HOME/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3"
+if [ -x "$RUNTIME_PY" ]; then
+  exec "$RUNTIME_PY" "$SERVER" "$@"
+fi
+
+if command -v python3 >/dev/null 2>&1; then
+  exec python3 "$SERVER" "$@"
+fi
+
+if command -v python >/dev/null 2>&1; then
+  exec python "$SERVER" "$@"
+fi
+
+echo "evo-semantic: no Python interpreter found. Install Python 3.9+ or set EVO_ONTOLOGY_PYTHON." >&2
+exit 127

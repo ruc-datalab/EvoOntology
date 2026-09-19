@@ -1,9 +1,8 @@
 {
   "mcpServers": {
     "evo-semantic": {
-      "command": "python",
-      "args": ["-m", "evoontology.runtime.mcp_server"],
-      "cwd": "${CLAUDE_PLUGIN_ROOT}"
+      "command": "${CLAUDE_PLUGIN_ROOT}/scripts/launch_evo_semantic_mcp",
+      "args": []
     }
   }
 }
