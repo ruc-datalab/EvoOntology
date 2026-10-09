@@ -4,7 +4,7 @@
 
 # Benchmarks
 
-Three benchmark environments validate the EvoOntology Build → Use → Record → Evolve → Evaluate loop. Each is a self-contained package connected to the evolution loop through an `EvolutionAdapter`, following [SkillOpt](https://github.com/microsoft/SkillOpt)'s `envs/<name>/` contract.
+Three benchmark environments validate the EvoOntology Build → Use → Record → Evolve → Evaluate loop. Each is a self-contained package connected to the evolution loop through an `EvolutionAdapter`.
 
 | Environment | Benchmark | Task type | Semantic workspace |
 | --- | --- | --- | --- |
@@ -14,21 +14,21 @@ Three benchmark environments validate the EvoOntology Build → Use → Record �
 
 ## Shared integration contract
 
-A benchmark environment provides four components corresponding to SkillOpt's dataloader, rollout, adapter, and configuration, plus an optional seed skill:
+A benchmark environment provides data loading, task execution and scoring, an evaluation adapter, and configuration. The shared `build-ontology` skill constructs the initial ontology layer:
 
-| SkillOpt | EvoOntology | Responsibility |
-| --- | --- | --- |
-| `dataloader.py` | `data/` or a scenario loader | Load train/validation/test items with IDs from disk |
-| `rollout.py` | `run_agent.py` + `run_evaluation.py` | Run the Agent, score each item, and persist results |
-| `adapter.py` (`EnvAdapter`) | `evolution_adapter.py` (`EvolutionAdapter`) | Connect the loader and rollout to the evolution lifecycle |
-| `configs/<name>/default.yaml` | `configs/baseline.yaml` + `configs/ontology.yaml` | Model, MCP, semantic switch, and evaluation parameters |
-| `skills/initial.md` | Plugin `build-ontology` skill | Initial ontology-layer construction method |
+| Component | Responsibility |
+| --- | --- |
+| `data/` or a scenario loader | Load train/validation/test items with IDs from disk |
+| Benchmark runner and evaluator (`run_agent.py` / `run_evaluation.py`, or InsightBench's `main.py`) | Run the Agent, score each item, and persist results |
+| `evolution_adapter.py` (`EvolutionAdapter`) | Connect the loader and rollout to the evolution lifecycle |
+| `configs/baseline.yaml` + `configs/ontology.yaml` | Model, MCP, semantic switch, and evaluation parameters |
+| Plugin `build-ontology` skill | Initial ontology-layer construction method |
 
-The core contract is `evaluate(subject, cases=None, output_hint=None) -> {"metrics", "cases", "artifact_paths"}`. The adapter must use only the standard library; benchmark-heavy dependencies such as the OpenAI SDK, `requests`, and `torch` are used only in `run_agent.py` or `run_evaluation.py` subprocesses.
+The core contract is `evaluate(subject, cases=None, output_hint=None) -> {"metrics", "cases", "artifact_paths"}`. The adapter must use only the standard library; benchmark-heavy dependencies such as the OpenAI SDK, `requests`, and `torch` are used only in runner or evaluator subprocesses.
 
 ## Unified discovery
 
-`benchmarks/registry.py` provides lazy-loading registration equivalent to SkillOpt's `_ENV_REGISTRY`:
+`benchmarks/registry.py` registers environments by name and loads their adapter classes on demand:
 
 ```bash
 python -m benchmarks list           # list registered environments

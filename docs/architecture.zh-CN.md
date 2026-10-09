@@ -6,8 +6,7 @@
 
 ## 核心思想
 
-EvoOntology 借鉴了 SkillOpt 的方法论：把「本体层」当成 Agent 的可训练状态，用轮次预算、验证集和
-Accept/Reject 门控约束每一次改动。SkillOpt 训练的是 skill 文档，EvoOntology 演化的是本体层记录。
+EvoOntology 维护一个版本化的本体层，供 Data Agent 通过语义 MCP 工具查询。Content Layer 保存有数据证据支撑的概念及其关系；Schema Layer 定义允许的表示结构；Tool Layer 通过 manifest 和按需 browse/resolve 操作提供访问。Build / Evolve skills 根据任务证据构建初始本体层并提出局部更新；确定性 Python 核心负责存储、运行时访问、轨迹、校验和进化生命周期。每次进化在冻结的轮次预算与评测边界内比较 Parent 和 Candidate，只有 Accept 决策才发布下一个本体版本。
 
 ```
 自然语言问题 ──▶ Data Agent（Claude Code / Codex / benchmark harness）
@@ -68,13 +67,13 @@ running ──预算耗尽/外部阻断──▶ incomplete（不发布、不推
 
 ## benchmark 接入形式
 
-每个 benchmark 是一个自包含环境，通过一个 `EvolutionAdapter` 接入进化循环（对应 SkillOpt 的 `EnvAdapter`）：
+每个 benchmark 是一个自包含环境，通过一个 `EvolutionAdapter` 接入进化循环。adapter 评测指定语义版本并返回统一格式的结果，使进化核心无需依赖 benchmark 内部实现即可比较 Parent 和 Candidate：
 
 - `evolution_adapter.py`：`evaluate(subject, cases, output_hint)` → `{metrics, cases, artifact_paths}`；
-- `run_agent.py` / `run_evaluation.py`：rollout + 评分（对应 SkillOpt 的 `rollout.py`）；
-- `data/`（或场景加载器）：dataloader（对应 SkillOpt 的 `dataloader.py`）；
+- benchmark 的 runner 与 evaluator（如 `run_agent.py` / `run_evaluation.py`，或 InsightBench 的 `main.py`）：执行任务、评分并落盘产物；
+- `data/`（或场景加载器）：加载任务条目与数据划分；
 - `configs/*.yaml`：baseline / semantic 两条实验条件；
-- seed skill：插件里的 `build-ontology`（对应 SkillOpt 的 `skills/initial.md`）。
+- 插件里的 `build-ontology` skill：根据 workload 与数据证据构建初始本体层。
 
-统一发现入口：`benchmarks/registry.py` + `python -m benchmarks`（对应 SkillOpt 的 `_ENV_REGISTRY`）。
+`benchmarks/registry.py` 按环境名称注册 adapter 工厂，并延迟导入 adapter 类；`python -m benchmarks` 用于列出环境与解析 adapter。
 接入细节见 [接入一个新的 Benchmark](guide/new-benchmark.zh-CN.md)。

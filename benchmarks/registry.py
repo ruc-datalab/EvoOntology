@@ -1,14 +1,13 @@
 """Lazy benchmark-environment registry.
 
-Mirrors SkillOpt's ``_ENV_REGISTRY``: each benchmark registers a stdlib-only
-adapter class that implements ``evoontology.evolution.EvolutionAdapter``. The
-adapter is imported lazily so optional benchmark dependencies (OpenAI SDK,
+Each benchmark registers a stdlib-only adapter class that implements
+``evoontology.evolution.EvolutionAdapter``. The adapter is imported lazily so
+optional benchmark dependencies (OpenAI SDK,
 ``requests``, ``torch``, ...) are never pulled in at discovery time.
 
-``EvolutionAdapter`` is the EvoOntology counterpart of SkillOpt's ``EnvAdapter``;
-the equivalent of SkillOpt's ``rollout`` helper + scoring lives inside each
-benchmark's ``run_agent.py`` / ``run_evaluation.py`` entry points, which the
-adapter drives as a subprocess.
+Task execution and scoring live inside each benchmark's runner and evaluator
+entry points, which the adapter drives as subprocesses. The adapter normalizes
+their results for the evolution lifecycle.
 """
 
 from __future__ import annotations

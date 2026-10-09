@@ -4,27 +4,10 @@
 
 # EvoOntology 文档
 
-EvoOntology 把「本体层」当作可训练状态，用类似训练神经网络的纪律去演化它——有轮次预算、验证集、
-Accept/Reject 门控，但改的是语义记录（Term / Mapping / Relation / Constraint / Evidence），而不是模型权重。
+EvoOntology 维护供 Data Agent 查询的版本化本体层。Build / Evolve skills 负责构建与更新，确定性核心负责存储、运行时访问和进化生命周期；候选更新在轮次预算与评测边界内经过 Parent/Candidate 比较，只有 Accept 才发布新版本。
 
 ## 文档导航
 
-- [架构总览](architecture.zh-CN.md) —— 闭环、模块划分、两种 mode，以及与 SkillOpt 的架构对照。
-- [接入一个新的 Benchmark](guide/new-benchmark.zh-CN.md) —— 用 dataloader / rollout / adapter / config / seed
-  skill 五件套接入一个新评测环境（对应 SkillOpt 的 `envs/<name>/` 契约）。
+- [架构总览](architecture.zh-CN.md) —— 本体层结构、闭环、模块职责、两种 mode 与 benchmark 接入。
+- [接入一个新的 Benchmark](guide/new-benchmark.zh-CN.md) —— 数据加载、任务执行与评分、adapter 契约、配置及初始本体构建。
 - [使用指南](../USAGE.zh-CN.md) —— 安装、workspace、进化闭环、端到端流程。
-
-## 与 SkillOpt 的对应关系
-
-| SkillOpt | EvoOntology |
-| --- | --- |
-| Skill 文档（可训练状态） | 本体层 `ontology_vN`（可训练状态） |
-| Rollout（目标执行任务） | benchmark 的 `run_agent.py` / `run_evaluation.py` |
-| Reflect（优化器产出编辑补丁） | `evolve-ontology` skill 的诊断与归因 |
-| Select / Update（learning rate = 最大编辑数） | Candidate 补丁（Content / Tool / Schema） |
-| Validation gate | `evoontology.evaluation.EvaluationGate`（GT / LLM Judge） |
-| `EnvAdapter` | `evoontology.evolution.EvolutionAdapter`（`evaluate()`） |
-| `envs/<name>/` | `benchmarks/<name>/` |
-| `configs/<name>/default.yaml` | `benchmarks/<name>/configs/*.yaml` |
-| `scripts/train.py` + `_ENV_REGISTRY` | `benchmarks/registry.py` + `python -m benchmarks` |
-| `docs/guide/` · `docs/reference/` | 本目录 |

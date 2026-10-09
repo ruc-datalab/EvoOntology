@@ -5,8 +5,7 @@
 # Benchmarks
 
 三个 benchmark 环境，用于验证 EvoOntology 的 Build → Use → Record → Evolve → Evaluate 闭环。
-每个环境是一个自包含包，通过一个 `EvolutionAdapter` 接入进化循环——这套接入形式对标
-[SkillOpt](https://github.com/microsoft/SkillOpt) 的 `envs/<name>/` 契约。
+每个环境是一个自包含包，通过一个 `EvolutionAdapter` 接入进化循环。
 
 | 环境 | 基准 | 任务类型 | 语义 workspace |
 | --- | --- | --- | --- |
@@ -16,25 +15,25 @@
 
 ## 统一接入契约
 
-一个 benchmark 环境提供四件事（对应 SkillOpt 的 dataloader / rollout / adapter / config），外加
-可选的 seed skill：
+每个 benchmark 环境提供数据加载、任务执行与评分、评测 adapter 和配置；初始本体层由共用的
+`build-ontology` skill 构建：
 
-| SkillOpt | EvoOntology | 说明 |
-| --- | --- | --- |
-| `dataloader.py` | `data/` 或场景加载器 | 从磁盘加载带 `id` 的 train/val/test item |
-| `rollout.py` | `run_agent.py` + `run_evaluation.py` | 运行 Agent、逐条评分、落盘结果 |
-| `adapter.py`（`EnvAdapter`） | `evolution_adapter.py`（`EvolutionAdapter`） | 把 loader + rollout 接入进化生命周期 |
-| `configs/<name>/default.yaml` | `configs/baseline.yaml` + `configs/ontology.yaml` | 模型、MCP、语义开关、评测参数 |
-| `skills/initial.md` | 插件 `build-ontology` skill | 初始本体层构建方法 |
+| 组件 | 职责 |
+| --- | --- |
+| `data/` 或场景加载器 | 从磁盘加载带 `id` 的 train/val/test item |
+| benchmark 的 runner 与 evaluator（`run_agent.py` / `run_evaluation.py`，或 InsightBench 的 `main.py`） | 运行 Agent、逐条评分、落盘结果 |
+| `evolution_adapter.py`（`EvolutionAdapter`） | 把 loader + rollout 接入进化生命周期 |
+| `configs/baseline.yaml` + `configs/ontology.yaml` | 模型、MCP、语义开关、评测参数 |
+| 插件 `build-ontology` skill | 初始本体层构建方法 |
 
 核心契约只有一条：adapter 实现
 `evaluate(subject, cases=None, output_hint=None) -> {"metrics", "cases", "artifact_paths"}`。
 adapter 必须 stdlib-only；benchmark 的重依赖（OpenAI SDK、`requests`、`torch` 等）只在
-`run_agent.py` / `run_evaluation.py` 子进程里使用。
+runner 或 evaluator 子进程里使用。
 
 ## 统一发现入口
 
-`benchmarks/registry.py` 提供对标 SkillOpt `_ENV_REGISTRY` 的懒加载注册：
+`benchmarks/registry.py` 按名称注册环境，并按需加载 adapter 类：
 
 ```bash
 python -m benchmarks list           # 列出已注册环境

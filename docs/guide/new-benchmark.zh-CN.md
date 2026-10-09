@@ -4,19 +4,18 @@
 
 # 接入一个新的 Benchmark
 
-一个 benchmark 环境 = `benchmarks/<name>/` 包，提供四个东西（对应 SkillOpt `envs/<name>/` 的
-dataloader / rollout / adapter / config），外加一个可选的初始 seed skill。已有实现里
-`benchmarks/bird/` 是最小的完整参考（对应 SkillOpt 的 `envs/officeqa/` 或 `envs/searchqa/`）。
+一个 benchmark 环境是一个 `benchmarks/<name>/` 包，提供数据加载、任务执行与评分、评测 adapter
+和配置。初始本体层通过共用的 `build-ontology` skill 构建；`benchmarks/bird/` 可作为完整接入参考。
 
-## 需要提供的四件事
+## 接入组件
 
-| SkillOpt 组件 | EvoOntology 组件 | 职责 |
-| --- | --- | --- |
-| `dataloader.py`（`SplitDataLoader`） | `data/` 或场景加载器 | 从磁盘加载 train/val/test item |
-| `rollout.py`（rollout + 评分） | `run_agent.py` + `run_evaluation.py` | 在 item 上运行 Agent、逐条评分、落盘结果 |
-| `adapter.py`（`EnvAdapter`） | `evolution_adapter.py`（`EvolutionAdapter`） | 把 loader + rollout 接入进化生命周期 |
-| `configs/<name>/default.yaml` | `configs/*.yaml` | 模型、MCP、语义开关、评测参数 |
-| `skills/initial.md`（seed skill） | `build-ontology` skill | 初始本体层的构建方法 |
+| 组件 | 职责 |
+| --- | --- |
+| `data/` 或场景加载器 | 从磁盘加载 train/val/test item |
+| `run_agent.py` + `run_evaluation.py` | 在 item 上运行 Agent、逐条评分、落盘结果 |
+| `evolution_adapter.py`（`EvolutionAdapter`） | 把 loader + rollout 接入进化生命周期 |
+| `configs/*.yaml` | 模型、MCP、语义开关、评测参数 |
+| `build-ontology` skill | 初始本体层的构建方法 |
 
 核心契约只有一条：`evolution_adapter.py` 里的适配器类实现
 `evaluate(subject: str, cases=None, output_hint=None) -> dict`，返回
@@ -39,8 +38,7 @@ touch benchmarks/my_benchmark/__init__.py
 ## Step 3 — rollout + 评分
 
 `run_agent.py` 负责「用某个语义版本在 item 上跑出结果」，`run_evaluation.py` 负责「执行结果 + 对照
-Ground Truth 评分」。评分逻辑放在这里，而不是放在 adapter 里——adapter 只做编排与结果规约（对应 SkillOpt
-「Scoring lives here, not in `EnvAdapter`」）。
+Ground Truth 评分」。评分逻辑放在这里，而不是放在 adapter 里——adapter 只做编排与结果规约。
 
 两条实验条件共用一个 Agent / 工具 / Runner，只有配置不同：
 

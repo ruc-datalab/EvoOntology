@@ -6,7 +6,7 @@
 
 ## Core idea
 
-EvoOntology adopts SkillOpt's methodology: treat the ontology layer as an Agent's trainable state and constrain every change with a round budget, validation data, and an Accept/Reject gate. SkillOpt trains skill documents; EvoOntology evolves ontology-layer records.
+EvoOntology maintains a versioned ontology layer that a Data Agent queries through semantic MCP tools. The Content Layer stores grounded concepts and their relationships; the Schema Layer defines the permitted representation; the Tool Layer exposes that state through a manifest and on-demand browse/resolve operations. Build and Evolve skills construct the initial layer and propose targeted updates from task evidence. The deterministic Python core manages storage, runtime access, trajectories, validation, and the evolution lifecycle. Each evolution run compares a Parent with a Candidate under a frozen round budget and evaluation boundary; only an Accept decision publishes the next ontology version.
 
 ```text
 Natural-language question ──▶ Data Agent (Claude Code / Codex / benchmark harness)
@@ -66,12 +66,12 @@ Both modes share the same workspace, versions, and checkpoint mechanism. They di
 
 ## Benchmark integration
 
-Each benchmark is a self-contained environment connected to the evolution loop through an `EvolutionAdapter`, corresponding to SkillOpt's `EnvAdapter`:
+Each benchmark is a self-contained environment connected to the evolution loop through an `EvolutionAdapter`. The adapter evaluates a semantic version and returns normalized results, allowing the evolution core to compare Parent and Candidate without depending on benchmark internals:
 
 - `evolution_adapter.py`: `evaluate(subject, cases, output_hint)` → `{metrics, cases, artifact_paths}`;
-- `run_agent.py` / `run_evaluation.py`: rollout and scoring, corresponding to SkillOpt's `rollout.py`;
-- `data/` or a scenario loader: dataloader, corresponding to SkillOpt's `dataloader.py`;
+- benchmark runners and evaluators (such as `run_agent.py` / `run_evaluation.py`, or InsightBench's `main.py`): execute tasks, score results, and persist artifacts;
+- `data/` or a scenario loader: load task items and dataset splits;
 - `configs/*.yaml`: baseline and semantic experimental conditions;
-- seed skill: the plugin's `build-ontology`, corresponding to SkillOpt's `skills/initial.md`.
+- the plugin's `build-ontology` skill: construct the initial ontology layer from workload and data evidence.
 
-Unified discovery uses `benchmarks/registry.py` and `python -m benchmarks`, corresponding to SkillOpt's `_ENV_REGISTRY`. See [Integrating a new benchmark](guide/new-benchmark.md).
+`benchmarks/registry.py` registers adapter factories by environment name and imports adapter classes lazily. `python -m benchmarks` lists environments and resolves their adapters. See [Integrating a new benchmark](guide/new-benchmark.md).

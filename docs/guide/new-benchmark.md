@@ -4,17 +4,17 @@
 
 # Integrating a New Benchmark
 
-A benchmark environment is a `benchmarks/<name>/` package that provides four components—dataloader, rollout, adapter, and configuration, corresponding to SkillOpt's `envs/<name>/` contract—plus an optional initial seed skill. `benchmarks/bird/` is the smallest complete reference, comparable to SkillOpt's `envs/officeqa/` or `envs/searchqa/`.
+A benchmark environment is a `benchmarks/<name>/` package that provides data loading, task execution and scoring, an evaluation adapter, and configuration. Use the shared `build-ontology` skill to construct its initial ontology layer. `benchmarks/bird/` provides a complete integration reference.
 
 ## Required components
 
-| SkillOpt component | EvoOntology component | Responsibility |
-| --- | --- | --- |
-| `dataloader.py` (`SplitDataLoader`) | `data/` or a scenario loader | Load train/validation/test items with IDs from disk |
-| `rollout.py` (rollout + scoring) | `run_agent.py` + `run_evaluation.py` | Run the Agent, score each item, and persist results |
-| `adapter.py` (`EnvAdapter`) | `evolution_adapter.py` (`EvolutionAdapter`) | Connect the loader and rollout to the evolution lifecycle |
-| `configs/<name>/default.yaml` | `configs/*.yaml` | Model, MCP, semantic switch, and evaluation parameters |
-| `skills/initial.md` (seed skill) | `build-ontology` skill | Initial ontology-layer construction method |
+| Component | Responsibility |
+| --- | --- |
+| `data/` or a scenario loader | Load train/validation/test items with IDs from disk |
+| `run_agent.py` + `run_evaluation.py` | Run the Agent, score each item, and persist results |
+| `evolution_adapter.py` (`EvolutionAdapter`) | Connect the loader and rollout to the evolution lifecycle |
+| `configs/*.yaml` | Model, MCP, semantic switch, and evaluation parameters |
+| `build-ontology` skill | Initial ontology-layer construction method |
 
 The only core contract is an adapter class in `evolution_adapter.py` implementing `evaluate(subject: str, cases=None, output_hint=None) -> dict` and returning `{"metrics": {...}, "cases": [...], "artifact_paths": [...]}`. `metrics` is the minimum input for a gate decision; `cases` and `artifact_paths` support diagnosis and audit.
 
@@ -31,7 +31,7 @@ Use a `data/` directory or scenario loader to load items with IDs from disk. BIR
 
 ## Step 3 — Implement rollout and scoring
 
-`run_agent.py` runs an item against a chosen semantic version. `run_evaluation.py` executes results and scores them against ground truth. Keep scoring here, not in the adapter: the adapter only orchestrates execution and normalizes results, following SkillOpt's rule that scoring lives outside `EnvAdapter`.
+`run_agent.py` runs an item against a chosen semantic version. `run_evaluation.py` executes results and scores them against ground truth. Keep scoring here, not in the adapter: the adapter only orchestrates execution and normalizes results.
 
 Both experimental conditions share one Agent, tool set, and runner, differing only in configuration:
 
