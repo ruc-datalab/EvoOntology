@@ -228,3 +228,36 @@ def test_resolve_context_disambiguates(tmp_path):
     with_context = layer.resolve(mentions=["profit"], context="net income")
     assert with_context["results"][0]["status"] == "resolved"
     assert with_context["results"][0]["term"]["name"] == "net_income"
+
+
+def test_resolve_returns_mapping_targeted_constraints(tmp_path):
+    records = {
+        "terms": [
+            {"id": "t1", "name": "net_income", "type": "metric", "definition": "net income"},
+            {"id": "t2", "name": "region", "type": "dimension", "definition": "sales region"},
+        ],
+        "mappings": [
+            {"id": "m1", "term_id": "t1", "table": "financials", "column": "net_income"},
+            {"id": "m_old", "term_id": "t1", "table": "legacy", "column": "net_income",
+             "lifecycle": {"state": "deprecated"}},
+            {"id": "m2", "term_id": "t2", "table": "sales", "column": "region"},
+        ],
+        "relations": [],
+        "constraints": [
+            {"id": "c_term", "target": "t1", "severity": "warn", "description": "exclude refunds"},
+            {"id": "c_map", "target": "m1", "severity": "warn",
+             "description": "values are in thousands", "evidence": ["e_map"]},
+            {"id": "c_old", "target": "m_old", "severity": "warn", "description": "legacy units"},
+            {"id": "c_other", "target": "m2", "severity": "warn", "description": "region codes"},
+        ],
+        "evidence": [
+            {"id": "e_map", "source": "schema", "query": "SELECT MAX(net_income) FROM financials"},
+        ],
+    }
+    ensure_workspace(str(tmp_path))
+    SemanticStore.save_version(str(tmp_path), "ontology_v0", records)
+    SemanticStore.set_active(str(tmp_path), "ontology_v0")
+    result = SemanticLayer.load(str(tmp_path)).resolve(mentions=["net_income"])["results"][0]
+    targets = {c["id"]: c.get("target") for c in result.get("constraints", [])}
+    assert targets == {"c_term": "t1", "c_map": "m1"}
+    assert [e["id"] for e in result.get("evidence", [])] == ["e_map"]
