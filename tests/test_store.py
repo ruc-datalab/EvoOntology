@@ -132,11 +132,16 @@ def test_save_validates_and_serializes_every_family_before_writing(tmp_path):
     assert not (tmp_path / "versions" / "bad-json").exists()
 
 
-def test_save_replaces_each_record_file_without_leaving_temporaries(tmp_path):
+def test_save_writes_each_record_file_without_leaving_temporaries(tmp_path):
     SemanticStore.save_version(tmp_path, "draft", SAMPLE)
+    version_dir = tmp_path / "versions" / "draft"
+    assert json.loads((version_dir / "relations.json").read_text(encoding="utf-8")) == []
+    assert not list(version_dir.glob("*.tmp"))
+    # An existing version directory is never rewritten: different content must
+    # raise instead of silently replacing the record files (issue #6).
     changed = {family: list(items) for family, items in SAMPLE.items()}
     changed["relations"] = [{"id": "r1", "source": "t1", "target": "t1", "type": "related"}]
-    SemanticStore.save_version(tmp_path, "draft", changed)
-    version_dir = tmp_path / "versions" / "draft"
-    assert json.loads((version_dir / "relations.json").read_text(encoding="utf-8"))[0]["id"] == "r1"
+    with pytest.raises(FileExistsError):
+        SemanticStore.save_version(tmp_path, "draft", changed)
+    assert json.loads((version_dir / "relations.json").read_text(encoding="utf-8")) == []
     assert not list(version_dir.glob("*.tmp"))

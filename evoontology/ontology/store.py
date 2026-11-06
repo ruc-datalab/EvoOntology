@@ -129,7 +129,10 @@ class SemanticStore:
 
         ``records`` maps each family name (``terms`` / ``mappings`` /
         ``relations`` / ``constraints`` / ``evidence``) to a list of raw record
-        dicts. Returns the absolute path of the written version directory.
+        dicts. An existing version directory is never rewritten, mirroring the
+        immutability rule :meth:`publish` enforces: identical content makes
+        the call a safe retry, different content raises ``FileExistsError``.
+        Returns the absolute path of the version directory.
         """
         version = validate_path_component(version, label="version")
         serialized = {}
@@ -141,7 +144,15 @@ class SemanticStore:
 
         root = ensure_workspace(path)
         version_dir = root / "versions" / version
-        version_dir.mkdir(parents=True, exist_ok=True)
+        if version_dir.exists():
+            for filename, payload in serialized.items():
+                destination = version_dir / filename
+                if not destination.is_file() or destination.read_bytes() != payload.encode("utf-8"):
+                    raise FileExistsError(
+                        f"Version already exists with different content: {version_dir}"
+                    )
+            return str(version_dir)
+        version_dir.mkdir(parents=True)
         for filename, payload in serialized.items():
             destination = version_dir / filename
             temporary = destination.with_suffix(destination.suffix + ".tmp")
