@@ -442,29 +442,24 @@ class SemanticLayer:
         if relations:
             result["relations"] = relations
 
+        targets = {term_id, *(m["id"] for m in mappings)}
         constraints = [
             {
                 "id": c.id,
+                "target": c.target,
                 "severity": c.severity,
                 "description": c.description or "",
                 "evidence_refs": list(c.evidence_refs),
             }
             for c in self.store.constraints.values()
-            if _is_active(c) and c.target == term_id
+            if _is_active(c) and c.target in targets
         ]
         if constraints:
             result["constraints"] = constraints
 
         evidence_ids: List[str] = list(getattr(item, "evidence_refs", []) or [])
-        for m in self.store.mappings.values():
-            if _is_active(m) and m.term_id == term_id:
-                evidence_ids.extend(m.evidence_refs)
-        for r in self.store.relations.values():
-            if _is_active(r) and (r.source == term_id or r.target == term_id):
-                evidence_ids.extend(r.evidence_refs)
-        for c in self.store.constraints.values():
-            if _is_active(c) and c.target == term_id:
-                evidence_ids.extend(c.evidence_refs)
+        for entry in (*mappings, *relations, *constraints):
+            evidence_ids.extend(entry["evidence_refs"])
 
         evidence: List[Dict[str, Any]] = []
         seen: set = set()
