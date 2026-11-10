@@ -302,13 +302,19 @@ class BIRDReActAgent:
             print(msg)
 
     def _prepare_llm_messages(self) -> List[Dict[str, Any]]:
-        api_messages = []
+        # Keep the initial task before the history to avoid restarting after tool results.
+        api_messages = [
+            {"role": "system", "content": msg.content}
+            for msg in self.session.messages
+            if msg.role == "system"
+        ]
+        api_messages.append({
+            "role": "user",
+            "content": f"Please start working on the task: {self.session.task}",
+        })
 
         for msg in self.session.messages:
-            if msg.role == "system":
-                api_messages.append({"role": "system", "content": msg.content})
-
-            elif msg.role == "agent":
+            if msg.role == "agent":
                 entry = {"role": "assistant", "content": msg.content or ""}
                 if msg.tool_call:
                     tc = msg.tool_call
@@ -336,10 +342,6 @@ class BIRDReActAgent:
                     })
                 else:
                     api_messages.append({"role": "user", "content": msg.content})
-
-
-        if not any(m.get("role") == "user" for m in api_messages):
-            api_messages.append({"role": "user", "content": f"Please start working on the task: {self.session.task}"})
 
         return api_messages
 
