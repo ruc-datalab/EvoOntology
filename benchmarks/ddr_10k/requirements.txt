@@ -1,4 +1,8 @@
 mcp==1.12.0
+# mcp 1.12.0 imports eval_type_backport from pydantic._internal._typing_extra,
+# which pydantic 2.14 removed. Without this bound a fresh install resolves
+# pydantic to 2.14.x and every `import mcp` fails at startup.
+pydantic<2.14
 google-genai==1.29.0
 google-generativeai==0.8.5
 openai==1.97.0
