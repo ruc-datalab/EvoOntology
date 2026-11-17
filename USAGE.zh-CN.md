@@ -20,8 +20,7 @@ skill，Python 只做「运行时 + 最小确定性校验 + 进化生命周期�
 
 ## 1. 安装
 
-请选择正在使用的客户端，通过 Marketplace 安装；无需 clone 仓库、创建虚拟环境或单独运行
-`pip install`。
+请选择正在使用的客户端。Claude Code 与 Codex 通过 Marketplace 安装，无需 clone 仓库、创建虚拟环境或单独运行 `pip install`；WorkBuddy 没有 Marketplace，改为从 clone 接入。
 
 ### Claude Code
 
@@ -43,6 +42,19 @@ codex plugin list
 
 Marketplace 添加成功不等于插件已安装；请以最后一条 `plugin list` 显示 installed/enabled
 为准。安装或更新后新建会话，再调用对应客户端的 `build-ontology` skill。
+
+### WorkBuddy
+
+```bash
+git clone https://github.com/ruc-datalab/EvoOntology.git
+cd EvoOntology
+python3 -m venv .venv && .venv/bin/pip install -e .
+plugins/workbuddy/install.sh
+```
+
+安装脚本会把三个 skill 拷入 `~/.workbuddy/skills/`，并把 `evo-semantic` MCP server 注册进
+`~/.workbuddy/mcp.json`。两者都用绝对路径，因为 WorkBuddy 不对该文件做变量展开。重启会话后生效；
+手动步骤、工作区选择与平台注意事项见 [WorkBuddy 集成](plugins/workbuddy/README.zh-CN.md)。
 
 ---
 
@@ -159,7 +171,9 @@ Incomplete 不发布、不推进；同一批次在下次 run 重试。`missing_d
 ## 6. MCP 接入
 
 插件通过 `.mcp.json` 以模块形式 spawn 服务，client 自动拉起、无需手动起服。默认
-workspace 为当前项目的 `.evoontology/`（零配置）。
+workspace 为当前项目的 `.evoontology/`（零配置）。WorkBuddy 则在用户级
+`~/.workbuddy/mcp.json` 中注册同一个 server，并以绝对路径指定 `--store`；详见
+[WorkBuddy 集成](plugins/workbuddy/README.zh-CN.md)。
 
 接入后 Data Agent 可见：
 

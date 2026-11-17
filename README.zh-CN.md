@@ -9,6 +9,7 @@
   <a href="https://github.com/ruc-datalab/EvoOntology"><img src="https://img.shields.io/badge/MCP-compatible-7c3aed.svg" alt="MCP compatible"></a>
   <a href="https://github.com/ruc-datalab/EvoOntology/tree/master/plugins/evoontology-codex"><img src="https://img.shields.io/badge/Plug--in-codex-white.svg" alt="Codex plugin"></a>
   <a href="https://github.com/ruc-datalab/EvoOntology/tree/master/plugins/claude-code"><img src="https://img.shields.io/badge/Plug--in-claude--code-orange.svg" alt="Claude Code plugin"></a>
+  <a href="https://github.com/ruc-datalab/EvoOntology/tree/master/plugins/workbuddy"><img src="https://img.shields.io/badge/Plug--in-workbuddy-1f6feb.svg" alt="WorkBuddy integration"></a>
 </p>
 
 <p align="center">
@@ -44,7 +45,7 @@ EvoOntology 用于弥合异构表格、文件和数据库上的 **agent-data gap
 
 ## 🎬 Demo
 
-Codex 和 Claude Code 插件可以基于您的数据构建并进化 Ontology Layer。
+Codex 和 Claude Code 插件可以基于您的数据构建并进化 Ontology Layer；WorkBuddy 通过自身的接入方式复用同一套 skill 与运行时。
 
 https://github.com/user-attachments/assets/e15f4acd-7161-4ae1-ba41-f2f3ea05488b
 
@@ -114,7 +115,7 @@ Ontology Layer 由三个相互关联的层组成，分别定义语义知识、�
 
 ## 🚀 快速开始
 
-直接从 GitHub Marketplace 安装插件，无需 clone 仓库、创建虚拟环境或单独执行 `pip install`。
+Claude Code 与 Codex 直接从 GitHub Marketplace 安装插件，无需 clone 仓库、创建虚拟环境或单独执行 `pip install`；WorkBuddy 没有插件市场，改为从 clone 接入。
 
 ### 🤖 Claude Code
 
@@ -148,9 +149,21 @@ $evolve-ontology
 $explore-ontology
 ```
 
-两个插件使用相同的 Build / Evolve / Explore 工作流名称，仅调用语法遵循各自平台约定。
-
 Codex 自动按用户需求、相关项目历史和有依据的探索补足问题，不要求预先准备问题或轨迹文件。构建和进化结束后自动展示结果。SQLite 支持内置只读回放，其他数据源通过宿主工具执行并记录实际观察。详见 [Codex 插件](plugins/evoontology-codex/README.md)。
+
+### 🖥️ WorkBuddy
+
+WorkBuddy 没有插件市场，而是加载用户级 skill 与 MCP server。环境准备一次，之后运行安装脚本：
+
+```bash
+cd EvoOntology
+python3 -m venv .venv && .venv/bin/pip install -e .
+plugins/workbuddy/install.sh
+```
+
+重启会话后，让 agent 使用 `build-ontology`、`evolve-ontology` 或 `explore-ontology`。安装脚本会把三个 skill 拷入 `~/.workbuddy/skills/`，并以绝对路径把 `evo-semantic` MCP server 注册进 `~/.workbuddy/mcp.json`。手动步骤、工作区选择与平台注意事项见 [WorkBuddy 集成](plugins/workbuddy/README.zh-CN.md)。
+
+三种接入方式使用相同的 Build / Evolve / Explore 工作流名称，仅调用方式与接入细节遵循各自平台约定。
 
 
 构建完成后，Data Agent 可以直接调用 `browse_semantics` 和 `resolve_semantics`，无需额外配置 Ontology Layer。完整流程和数据边界请见[使用指南](USAGE.md)。
@@ -194,7 +207,7 @@ EvoOntology 包含三个互补的、自包含的 Data Agent 评估环境：
 | --- | --- |
 | [`assets/`](assets/) | README 媒体、框架图和 Ontology Layer 界面截图。 |
 | [`evoontology/`](evoontology/) | 确定性核心：ontology store、runtime/MCP、trajectory、trigger、evaluation、evolution state、validation 和 visualization。 |
-| [`plugins/`](plugins/) | 自包含的 Claude Code 与 Codex 插件，包括 Build、Evolve 和 Visualize skills。 |
+| [`plugins/`](plugins/) | 自包含的 Claude Code 与 Codex 插件（含 Build、Evolve、Visualize skills），以及复用同一套 skill 与语义 MCP 运行时的 WorkBuddy 集成。 |
 | [`benchmarks/`](benchmarks/) | BIRD、DDR-10K 和 InsightBench 评估环境。 |
 | [`docs/`](docs/) | 架构与 benchmark 接入文档。 |
 | [`scripts/`](scripts/) | 将 core 同步到插件的工具。 |
@@ -204,7 +217,7 @@ EvoOntology 包含三个互补的、自包含的 Data Agent 评估环境：
 - [使用指南](USAGE.md) — 安装、workspace、生命周期、配置和端到端流程。
 - [架构说明](docs/architecture.md) — 模块边界、进化状态机和评估模式。
 - [新增 Benchmark](docs/guide/new-benchmark.md) — adapter、data loader、rollout、配置和 seed skill 契约。
-- [Claude Code 插件](plugins/claude-code/README.md)与 [Codex 插件](plugins/evoontology-codex/README.md) — 各客户端的安装与使用方式。
+- [Claude Code 插件](plugins/claude-code/README.md)、[Codex 插件](plugins/evoontology-codex/README.md)与 [WorkBuddy 集成](plugins/workbuddy/README.zh-CN.md) — 各客户端的安装与使用方式。
 
 ## 🌐 社区分享与解读
 
