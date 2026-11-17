@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "evo-semantic": {
+      "command": "/absolute/path/to/EvoOntology/.venv/bin/python",
+      "args": [
+        "-m",
+        "evoontology.runtime.mcp_server",
+        "--store",
+        "/absolute/path/to/EvoOntology/benchmarks/ddr_10k/.evoontology"
+      ],
+      "disabled": false
+    }
+  }
+}

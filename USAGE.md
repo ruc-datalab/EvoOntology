@@ -15,7 +15,7 @@ The product consists of one core package, including the validation gate, and thr
 
 ## 1. Installation
 
-Choose your client and install through its Marketplace. You do not need to clone the repository, create a virtual environment, or run `pip install` separately.
+Choose your client. Claude Code and Codex install through their Marketplace and need no repository clone, virtual environment, or separate `pip install`. WorkBuddy has no Marketplace and is wired from a clone instead.
 
 ### Claude Code
 
@@ -36,6 +36,17 @@ codex plugin list
 ```
 
 Adding the Marketplace does not install the plugin. Confirm that the final `plugin list` reports it as installed and enabled. After installing or updating, start a new session and invoke the client's `build-ontology` skill.
+
+### WorkBuddy
+
+```bash
+git clone https://github.com/ruc-datalab/EvoOntology.git
+cd EvoOntology
+python3 -m venv .venv && .venv/bin/pip install -e .
+plugins/workbuddy/install.sh
+```
+
+The installer copies the three skills to `~/.workbuddy/skills/` and registers the `evo-semantic` MCP server in `~/.workbuddy/mcp.json`. Both paths are absolute because WorkBuddy expands no variables in that file. Restart the session so both take effect; see the [WorkBuddy integration](plugins/workbuddy/README.md) for manual steps, workspace selection, and platform caveats.
 
 ---
 
@@ -126,7 +137,7 @@ There is no default `config.yaml`. To change behavior, tell Claude or Codex dire
 
 ## 6. MCP integration
 
-The plugin uses `.mcp.json` to spawn the service as a module. The client starts it automatically, so no manual server process is required. The default workspace is `.evoontology/` in the current project.
+The plugin uses `.mcp.json` to spawn the service as a module. The client starts it automatically, so no manual server process is required. The default workspace is `.evoontology/` in the current project. WorkBuddy instead registers the same server in the user-level `~/.workbuddy/mcp.json` with an absolute `--store` path; see the [WorkBuddy integration](plugins/workbuddy/README.md).
 
 The Data Agent receives:
 
@@ -151,7 +162,7 @@ Validation is structural only. Database-semantic checks—whether tables and col
 ## 8. Minimal end-to-end flow
 
 ```bash
-# 1. Install the plugin through the Claude Code or Codex Marketplace as described in Section 1
+# 1. Install through the Claude Code or Codex Marketplace, or wire WorkBuddy from a clone (Section 1)
 
 # 2. Build ontology_v0 (Claude Code / Codex)
 /evoontology:build-ontology

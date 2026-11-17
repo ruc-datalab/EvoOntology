@@ -9,6 +9,7 @@
   <a href="https://github.com/ruc-datalab/EvoOntology"><img src="https://img.shields.io/badge/MCP-compatible-7c3aed.svg" alt="MCP compatible"></a>
   <a href="https://github.com/ruc-datalab/EvoOntology/tree/master/plugins/evoontology-codex"><img src="https://img.shields.io/badge/Plug--in-codex-white.svg" alt="Codex plugin"></a>
   <a href="https://github.com/ruc-datalab/EvoOntology/tree/master/plugins/claude-code"><img src="https://img.shields.io/badge/Plug--in-claude--code-orange.svg" alt="Claude Code plugin"></a>
+  <a href="https://github.com/ruc-datalab/EvoOntology/tree/master/plugins/workbuddy"><img src="https://img.shields.io/badge/Plug--in-workbuddy-1f6feb.svg" alt="WorkBuddy integration"></a>
   <a href="https://github.com/ruc-datalab/EvoOntology/stargazers"><img src="https://img.shields.io/github/stars/ruc-datalab/EvoOntology?style=flat&amp;logo=github&amp;color=3941EA" alt="GitHub stars"></a>
   <a href="https://github.com/ruc-datalab/EvoOntology/forks"><img src="https://img.shields.io/github/forks/ruc-datalab/EvoOntology?style=flat&amp;logo=github&amp;color=3941EA" alt="GitHub forks"></a>
   <a href="https://hitscounter.dev/history?url=https%3A%2F%2Fgithub.com%2Fruc-datalab%2FEvoOntology"><img src="https://hitscounter.dev/api/hit?url=https%3A%2F%2Fgithub.com%2Fruc-datalab%2FEvoOntology&amp;label=Views&amp;icon=graph-up&amp;color=%233941ea&amp;message=&amp;style=flat&amp;tz=Asia%2FShanghai" alt="Page views: today / total"></a>
@@ -32,7 +33,7 @@ EvoOntology is the first self-evolving ontology layer for data agents, aiming to
 
 ## 🎬 Demo
 
-The Codex and Claude Code plugins build and evolve ontology layers over your data.
+The Codex and Claude Code plugins build and evolve ontology layers over your data; WorkBuddy uses the same skills and runtime through its own wiring.
 
 https://github.com/user-attachments/assets/e15f4acd-7161-4ae1-ba41-f2f3ea05488b
 
@@ -115,7 +116,7 @@ Three interconnected layers define the ontology's knowledge, representation rule
 
 ## 🚀 Quick Start
 
-Install the plugin from the GitHub marketplace—no repository clone, virtual environment, or separate `pip install` is required.
+Claude Code and Codex install from the GitHub marketplace—no repository clone, virtual environment, or separate `pip install` is required. WorkBuddy has no marketplace and is wired from a clone instead.
 
 ### 🤖 Claude Code
 
@@ -149,10 +150,22 @@ $evolve-ontology
 $explore-ontology
 ```
 
-Both plugins use the same Build / Evolve / Explore workflow names; only the
-platform-native invocation syntax differs.
-
 Codex prepares questions from user needs, relevant project history and grounded exploration; question/trajectory files are optional. Build and Evolve automatically open the outcome explorer. SQLite has built-in read-only task replay; other data sources use host tools with explicit observation recording. See [Codex plugin](plugins/evoontology-codex/README.md).
+
+### 🖥️ WorkBuddy
+
+WorkBuddy has no plugin marketplace; it loads user-level skills and MCP servers. Prepare the environment once, then run the installer:
+
+```bash
+cd EvoOntology
+python3 -m venv .venv && .venv/bin/pip install -e .
+plugins/workbuddy/install.sh
+```
+
+Restart the session, then ask the agent to use `build-ontology`, `evolve-ontology`, or `explore-ontology`. The installer copies the three skills into `~/.workbuddy/skills/` and registers the `evo-semantic` MCP server in `~/.workbuddy/mcp.json` with absolute paths. See the [WorkBuddy integration](plugins/workbuddy/README.md) for the manual steps, workspace selection, and platform caveats.
+
+All three integrations use the same Build / Evolve / Explore workflow names; only the
+platform-native invocation and wiring differ.
 
 
 Once built, the Data Agent can call `browse_semantics` and `resolve_semantics` without additional ontology configuration. See the [usage guide](USAGE.md) for the full workflow and data boundaries.
@@ -188,7 +201,7 @@ Each environment implements an `EvolutionAdapter` and preserves its native rollo
 | --- | --- |
 | [`assets/`](assets/) | README media, framework figures, and ontology-layer interface screenshots. |
 | [`evoontology/`](evoontology/) | Deterministic core: ontology store, runtime/MCP, trajectories, triggers, evaluation, evolution state, validation, and visualization. |
-| [`plugins/`](plugins/) | Self-contained Claude Code and Codex plugins with Build, Evolve, and Visualize skills. |
+| [`plugins/`](plugins/) | Self-contained Claude Code and Codex plugins with Build, Evolve, and Visualize skills, plus a WorkBuddy integration that reuses the same skills and semantic MCP runtime. |
 | [`benchmarks/`](benchmarks/) | BIRD, DDR-10K, and InsightBench evaluation environments. |
 | [`docs/`](docs/) | Architecture and benchmark-integration documentation. |
 | [`scripts/`](scripts/) | Core-to-plugin synchronization utilities. |
@@ -198,7 +211,7 @@ Each environment implements an `EvolutionAdapter` and preserves its native rollo
 - [Usage guide](USAGE.md) —installation, workspace, lifecycle, configuration, and end-to-end operation.
 - [Architecture](docs/architecture.md) —module boundaries, evolution state machine, and evaluation modes.
 - [Add a benchmark](docs/guide/new-benchmark.md) —adapter, data loader, rollout, configuration, and seed-skill contract.
-- [Claude Code plugin](plugins/claude-code/README.md) and [Codex plugin](plugins/evoontology-codex/README.md) —client-specific installation and usage.
+- [Claude Code plugin](plugins/claude-code/README.md), [Codex plugin](plugins/evoontology-codex/README.md), and [WorkBuddy integration](plugins/workbuddy/README.md) —client-specific installation and usage.
 
 
 ## 🖋 Citation
