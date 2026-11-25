@@ -574,8 +574,11 @@ class AutonomousDataAgent:
         supports_structured_tools = any(name in provider_name for name in ["openai", "gemini", "gemini3", "anthropic", "minimax"])
         is_gemini3 = "gemini3" in provider_name
 
-        # Start with system message
-        messages = [{"role": "system", "content": self.prompt_manager.build_system_prompt_with_task(self.session.task)}]
+        # Keep the initial task before the history to avoid restarting after tool results.
+        messages = [
+            {"role": "system", "content": self.prompt_manager.build_system_prompt_with_task(self.session.task)},
+            {"role": "user", "content": f"Please start working on the task: {self.session.task}"},
+        ]
 
         for i, msg in enumerate(self.session.messages):
             if msg.role != "system":
@@ -638,11 +641,6 @@ class AutonomousDataAgent:
                     # For providers that don't support structured tools, use simple format
                     message = {"role": llm_role, "content": msg.content}
                     messages.append(message)
-
-
-
-        if not any(m.get("role") == "user" for m in messages):
-            messages.append({"role": "user", "content": f"Please start working on the task: {self.session.task}"})
 
         return messages
 
