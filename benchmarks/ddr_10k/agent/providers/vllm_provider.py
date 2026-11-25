@@ -12,6 +12,11 @@ import aiohttp
 
 from .base import LLMProvider, log_llm_call, system_logger
 
+if __package__ == "agent.providers":
+    from config import openai_compatible_endpoint, override_url_port
+else:
+    from ...config import openai_compatible_endpoint, override_url_port
+
 
 class VLLMProvider(LLMProvider):
     """VLLM local model API provider"""
@@ -20,17 +25,12 @@ class VLLMProvider(LLMProvider):
         super().__init__()
         if not base_url:
             raise ValueError("A base URL must be provided through configuration or environment.")
-        if port is not None and port > 0:
-            # If both base_url and port are provided, port takes precedence
-            # Extract host from base_url and use provided port
-            if "://" in base_url:
-                protocol, host_part = base_url.split("://", 1)
-                host = host_part.split(":")[0]  # Remove existing port if any
-                base_url = f"{protocol}://{host}:{port}"
-            else:
-                raise ValueError("A base URL with an explicit scheme is required when overriding the port.")
+        if port and port > 0 and "://" not in base_url:
+            raise ValueError("A base URL with an explicit scheme is required when overriding the port.")
 
-        self.base_url = base_url.rstrip('/')
+        self.base_url = override_url_port(base_url, port)
+        self._models_url = openai_compatible_endpoint(self.base_url, "models")
+        self._chat_url = openai_compatible_endpoint(self.base_url, "chat/completions")
         self.model = model
         self.api_key = api_key
         self.port = port
@@ -44,7 +44,7 @@ class VLLMProvider(LLMProvider):
 
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.get(f"{self.base_url}/v1/models") as response:
+                async with session.get(self._models_url) as response:
                     if response.status == 200:
                         models_data = await response.json()
                         # Find our model in the list
@@ -102,7 +102,7 @@ class VLLMProvider(LLMProvider):
 
             async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=5)) as session:
                 async with session.post(
-                    f"{self.base_url}/v1/chat/completions",
+                    self._chat_url,
                     json=payload,
                     headers=headers
                 ) as response:
@@ -247,7 +247,7 @@ class VLLMProvider(LLMProvider):
         }
 
         input_data = {
-            "url": f"{self.base_url}/v1/chat/completions",
+            "url": self._chat_url,
             "payload": payload,
             "headers": {k: v for k, v in headers.items() if k != "Authorization"}  # Don't log API key
         }
@@ -255,7 +255,7 @@ class VLLMProvider(LLMProvider):
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
-                    f"{self.base_url}/v1/chat/completions",
+                    self._chat_url,
                     json=payload,
                     headers=headers
                 ) as response:
@@ -533,7 +533,7 @@ class VLLMProvider(LLMProvider):
         }
 
         input_data = {
-            "url": f"{self.base_url}/v1/chat/completions",
+            "url": self._chat_url,
             "payload": {k: v for k, v in payload.items() if k != "messages"},
             "messages": chat_messages,
             "method": "simple_chat_gemma",
@@ -543,7 +543,7 @@ class VLLMProvider(LLMProvider):
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
-                    f"{self.base_url}/v1/chat/completions",
+                    self._chat_url,
                     json=payload,
                     headers=headers
                 ) as response:
@@ -638,7 +638,7 @@ class VLLMProvider(LLMProvider):
         }
 
         input_data = {
-            "url": f"{self.base_url}/v1/chat/completions",
+            "url": self._chat_url,
             "payload": {k: v for k, v in payload.items() if k != "tools"},
             "messages": messages,  # Include messages for logging
             "tools": openai_tools,  # Include tools for logging
@@ -650,7 +650,7 @@ class VLLMProvider(LLMProvider):
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
-                    f"{self.base_url}/v1/chat/completions",
+                    self._chat_url,
                     json=payload,
                     headers=headers
                 ) as response:
@@ -837,7 +837,7 @@ class VLLMProvider(LLMProvider):
         }
 
         input_data = {
-            "url": f"{self.base_url}/v1/chat/completions",
+            "url": self._chat_url,
             "payload": {k: v for k, v in payload.items() if k != "messages"},
             "messages": enhanced_messages,  # Include messages for logging
             "message_count": len(enhanced_messages),
@@ -849,7 +849,7 @@ class VLLMProvider(LLMProvider):
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
-                    f"{self.base_url}/v1/chat/completions",
+                    self._chat_url,
                     json=payload,
                     headers=headers
                 ) as response:

@@ -10,6 +10,7 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Any
+from urllib.parse import urlsplit
 
 import yaml
 
@@ -21,6 +22,26 @@ try:
         load_dotenv(_env_path)
 except ImportError:
     pass  # python-dotenv not installed, user must set env vars manually
+
+
+def override_url_port(base_url: str, port: Optional[int]) -> str:
+    """Override the authority port while preserving the rest of the URL."""
+    if not port or port <= 0:
+        return base_url
+    url = urlsplit(base_url)
+    host = url.netloc
+    if url.port is not None or host.endswith(":"):
+        host = host.rsplit(":", 1)[0]
+    return url._replace(netloc=f"{host}:{port}").geturl()
+
+
+def openai_compatible_endpoint(base_url: str, resource: str) -> str:
+    """Append an OpenAI-compatible resource under a single trailing /v1."""
+    url = urlsplit(base_url)
+    path = url.path.rstrip("/")
+    if not path.endswith("/v1"):
+        path += "/v1"
+    return url._replace(path=f"{path}/{resource}").geturl()
 
 
 @dataclass
