@@ -6,6 +6,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 from evoontology import SemanticStore
 
 
@@ -137,3 +139,117 @@ def test_chinese_arguments_survive_non_utf8_host_locale(tmp_path):
     assert "result" in payload, payload
     text = payload["result"]["content"][0]["text"]
     assert json.loads(text)["status"] == "ok"
+
+
+@pytest.mark.parametrize("data_source", [
+    "/absolute/path/sales.sqlite",
+    {"type": "sqlite", "path": "/absolute/path/sales.sqlite"},
+    {"type": "host", "connection": {"name": "warehouse", "extra": [1]}},
+])
+def test_stdio_workflow_input_schema_and_legacy_calls(tmp_path, data_source):
+    workspace = tmp_path / ".evoontology"
+    records = {family: [] for family in ("mappings", "relations", "constraints", "evidence")}
+    records["terms"] = [{"id": "t1", "name": "Revenue", "definition": "Recorded revenue"}]
+    SemanticStore.save_version(workspace, "ontology_v0", records)
+
+    project = {
+        "version": 1,
+        "mode": "rolling_trajectory",
+        "data_source": data_source,
+        "workload_source": {"type": "project_workload", "extra": ["seed"]},
+        "evaluation": {"type": "llm_judge", "extensions": {"temperature": 0}},
+        "boundary": {"strategy": "rolling_trajectory", "extra": {"limit": 10}},
+        "owner": "sample",
+    }
+    configure = "configure_ontology_project"
+    prepare = "prepare_ontology_workload"
+    annotate = "annotate_ontology_version"
+    requests = [{"jsonrpc": "2.0", "id": 0, "method": "tools/list"}]
+
+    def tool(name, **arguments):
+        requests.append({
+            "jsonrpc": "2.0", "id": len(requests), "method": "tools/call",
+            "params": {"name": name, "arguments": {"workspace": str(workspace), **arguments}},
+        })
+
+    tool(configure, project=project)
+    tool(configure, replace=True, project={
+        **project, "schema_version": 1, "version": {"ignored": 99},
+    })
+    tool(configure, replace=True, project={**project, "schema_version": 99})
+    tool(prepare,
+         questions=["What were total sales?", {"id": "question2", "question": "Monthly sales?"}],
+         history=["No source", {"question": "No source ref", "data_source": data_source},
+                  {"question": "Last year sales?", "data_source": data_source,
+                   "source_ref": "prior report", "recorded_at": None, "topics": ["sales"]}],
+         generated=[{"question": "Sales by region?", "evidence_refs": ["sales.region"]}])
+    tool(prepare, generated=[{"question": "Missing evidence"}])
+    tool(prepare, generated=["Also missing evidence"])
+    links = [{"question_id": "question2", "reason": "Optional object IDs"},
+             {"question_id": "question2", "object_ids": ["t1"]}]
+    tool(annotate, version="ontology_v0", summary="Verified links", limitations=[], links=links)
+    tool(configure, replace=True, project={
+        **project, "mode": "fixed_split", "boundary": {"construction_question_ids": ["in_split"]},
+    })
+    tool(prepare, questions=["Outside the fixed split"])
+    tool(prepare, questions=[{"id": "in_split", "question": "Fixed split question"}],
+         history=["Ignored in fixed mode"], generated=[{"question": "Also ignored in fixed mode"}])
+
+    completed = subprocess.run(
+        [sys.executable, "-m", "evoontology.runtime.mcp_server", "--store", str(workspace)],
+        input="".join(json.dumps(req) + "\n" for req in requests),
+        text=True, encoding="utf-8", capture_output=True, check=True, timeout=30,
+    )
+    replies = [json.loads(line) for line in completed.stdout.splitlines()]
+    assert [reply["id"] for reply in replies] == list(range(len(requests)))
+    schemas = {entry["name"]: entry["inputSchema"]["properties"] for entry in replies[0]["result"]["tools"]}
+    project_schema = schemas[configure]["project"]
+    assert set(project_schema["required"]) == set(project) - {"owner", "version"}
+    properties = project_schema["properties"]
+    assert properties["schema_version"]["const"] == 1
+    assert "const" not in properties["version"]
+    assert {"required": ["schema_version"]} in project_schema["anyOf"]
+    assert {"required": ["version"], "properties": {"version": {"type": "integer", "const": 1}}} in project_schema["anyOf"]
+    assert properties["mode"]["enum"] == ["fixed_split", "rolling_trajectory"]
+    assert "construction_question_ids" in properties["boundary"]["properties"]
+    assert properties["evaluation"].get("additionalProperties", True)
+    assert properties["boundary"].get("additionalProperties", True)
+    for name in ("questions", "history", "generated"):
+        schema = schemas[prepare][name]
+        assert schema["type"] == "array"
+        variants = {item["type"]: item for item in schema["items"]["anyOf"]}
+        assert set(variants) == {"string", "object"}
+        assert variants["object"]["required"] == ["question"]
+        assert set(variants["object"]["properties"]) == {
+            "question", "id", "data_source", "source_ref", "evidence_refs", "topics", "recorded_at", "purpose",
+        }
+    link_schema = schemas[annotate]["links"]["items"]
+    assert link_schema["required"] == ["question_id"]
+    assert link_schema["properties"]["object_ids"]["default"] == []
+    assert link_schema.get("additionalProperties", True)
+    assert schemas["record_ontology_task_event"]["arguments"] == {"type": "object"}
+
+    def payload(index, *, error=False):
+        reply = replies[index]["result"]
+        assert reply["isError"] is error, reply
+        return json.loads(reply["content"][0]["text"])
+
+    normalized = {key: value for key, value in project.items() if key != "version"}
+    normalized["schema_version"] = 1
+    assert payload(1)["project"] == normalized
+    assert payload(2)["project"] == normalized
+    assert "schema_version must be 1" in payload(3, error=True)["message"]
+    workload = payload(4)
+    assert workload["counts"] == {"user": 2, "history": 1, "generated": 1}
+    assert len(workload["notes"]) == 2
+    assert workload["questions"][0]["origin"] == "user"
+    by_question = {q["question"]: q for q in workload["questions"]}
+    assert by_question["What were total sales?"]["id"].startswith("q_")
+    assert by_question["Last year sales?"]["provenance"][0]["source_ref"] == "prior report"
+    assert by_question["Sales by region?"]["provenance"][0]["evidence_refs"] == ["sales.region"]
+    for index in (5, 6):
+        assert "require evidence_refs" in payload(index, error=True)["message"]
+    assert payload(7)["links"] == links
+    assert payload(8)["project"]["mode"] == "fixed_split"
+    assert "construction boundary" in payload(9, error=True)["message"]
+    assert [q["id"] for q in payload(10)["questions"]] == ["in_split"]

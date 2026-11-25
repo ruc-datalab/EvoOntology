@@ -9,6 +9,8 @@ or ``from evoontology import ...`` from the user project.
 
 from __future__ import annotations
 
+from ..workspace import PROJECT_MODES, PROJECT_SCHEMA_VERSION
+
 _WORKSPACE = {
     "type": "string",
     "description": (
@@ -366,7 +368,106 @@ OPERATIONS = [
 # executable instructions; native execution remains in the host except SQLite.
 _STRING = {"type": "string"}
 _OBJECT = {"type": "object"}
-_ARRAY = {"type": "array", "items": {"type": "object"}}
+_TEXT_LIST = {"type": "array", "items": _STRING}
+_REFERENCE_TYPES = ["string", "object", "array", "number", "boolean", "null"]
+_SOURCE = {
+    "type": _REFERENCE_TYPES,
+    "description": "SQLite path, source descriptor (for example, {type: sqlite, path: ...}), or host data reference.",
+    "examples": ["/absolute/path/sales.sqlite", {"type": "sqlite", "path": "/absolute/path/sales.sqlite"}],
+}
+_VERSION = {"type": "integer", "const": PROJECT_SCHEMA_VERSION}
+_PROJECT = {
+    "type": "object",
+    "properties": {
+        "schema_version": {**_VERSION, "description": "Project schema version. Takes precedence over version."},
+        "version": {"description": "Legacy alias. Must be 1 only when schema_version is absent."},
+        "mode": {"type": "string", "enum": sorted(PROJECT_MODES), "description": "Data boundary and workload mode."},
+        "data_source": _SOURCE,
+        "workload_source": {
+            "type": _REFERENCE_TYPES,
+            "description": "Seed workload or fixed-split question source, such as a path or project workload descriptor.",
+            "examples": ["/absolute/path/questions.json", {"type": "project_workload"}],
+        },
+        "evaluation": {
+            "type": "object",
+            "description": "Evaluator metadata. Additional project-specific settings are allowed.",
+            "properties": {
+                "type": {**_STRING, "description": "Evaluator kind, such as llm_judge or external_evaluator."},
+                "adapter": {**_STRING, "description": "External evaluator adapter name."},
+                "ground_truth_source": {"description": "Evaluator-only reference to ground truth."},
+            },
+        },
+        "boundary": {
+            "type": "object",
+            "description": "Workload boundary metadata. Additional project-specific settings are allowed.",
+            "properties": {
+                "strategy": {**_STRING, "description": "Boundary strategy, such as rolling_trajectory."},
+                "direction": {**_STRING, "description": "Fixed-split direction, such as A_to_B."},
+                "evolution_split": {"description": "Reference to the evolution split."},
+                "validation_split": {"description": "Reference to the validation split."},
+                "heldout_split": {"description": "Reference to the held-out test split."},
+                "construction_question_ids": {
+                    "type": "array",
+                    "items": {"type": ["string", "integer"]},
+                    "description": "Register the IDs permitted for fixed-split question imports.",
+                },
+            },
+        },
+    },
+    "required": ["mode", "data_source", "workload_source", "evaluation", "boundary"],
+    "anyOf": [
+        {"required": ["schema_version"]},
+        {"required": ["version"], "properties": {"version": _VERSION}},
+    ],
+}
+_QUESTION_LIST = {
+    "type": "array",
+    "items": {
+        "anyOf": [
+            {"type": "string", "description": "Plain question text."},
+            {
+                "type": "object",
+                "properties": {
+                    "question": {**_STRING, "description": "Non-empty question text."},
+                    "id": {
+                        "type": ["string", "integer", "null"],
+                        "description": "Question ID. Omit to derive it from the question in rolling mode.",
+                    },
+                    "data_source": _SOURCE,
+                    "source_ref": {
+                        "type": ["string", "null"],
+                        "description": "Source reference. Defaults to current request when omitted.",
+                    },
+                    "evidence_refs": {**_TEXT_LIST, "description": "References to inspected evidence."},
+                    "topics": {**_TEXT_LIST, "description": "Topics used to diversify workload coverage."},
+                    "recorded_at": {
+                        "type": ["string", "null"],
+                        "description": "Recorded timestamp. Defaults to the current time.",
+                    },
+                    "purpose": {
+                        "type": "string", "default": "construction",
+                        "description": "Use construction for this workload. Reserved questions are rejected.",
+                    },
+                },
+                "required": ["question"],
+            },
+        ],
+    },
+}
+_QUESTION_LINKS = {
+    "type": "array",
+    "items": {
+        "type": "object",
+        "properties": {
+            "question_id": {**_STRING, "description": "ID of a prepared question."},
+            "object_ids": {
+                **_TEXT_LIST, "default": [],
+                "description": "IDs of existing objects in the annotated version. Omit for no links.",
+            },
+        },
+        "required": ["question_id"],
+    },
+}
 
 def _workflow_tool(name, description, properties, required=()):
     return {"name": name, "description": description, "inputSchema": {
@@ -377,9 +478,11 @@ OPERATIONS.extend([
     _workflow_tool("publish_ontology_build", "Validate and activate the initial saved ontology, initialize evolution state and automatically open the outcome explorer. Existing active versions are never overwritten.",
                    {"version": _STRING, "open_browser": {"type": "boolean"}, "presentation": {"type": "string", "enum": ["codex", "external"]}}),
     _workflow_tool("configure_ontology_project", "Persist project context or reuse existing settings. Replace only when reconfiguration was requested.",
-                   {"project": _OBJECT, "replace": {"type": "boolean"}}, ["project"]),
+                   {"project": _PROJECT, "replace": {"type": "boolean"}}, ["project"]),
     _workflow_tool("prepare_ontology_workload", "Collect project questions by user, same-data history, then evidence-grounded generated questions. Deduplicate and report coverage gaps. Never reads global chat history or reserved benchmark data.",
-                   {"questions": _ARRAY, "history": _ARRAY, "generated": _ARRAY,
+                   {"questions": {**_QUESTION_LIST, "description": "Supplied questions. In fixed_split mode, each must be an object with an ID registered in boundary.construction_question_ids."},
+                    "history": {**_QUESTION_LIST, "description": "Rolling-mode history. Entries without source_ref or a matching project data_source are skipped."},
+                    "generated": {**_QUESTION_LIST, "description": "Rolling-mode generated questions. Processing requires non-empty evidence_refs; missing evidence is reported by the workflow."},
                     "include_history": {"type": "boolean"},
                     "supplied_only": {"type": "boolean", "description": "Use only questions supplied in this call; retain stored history without selecting it."},
                     "limit": {"type": "integer", "minimum": 1, "maximum": 100},
@@ -400,6 +503,6 @@ OPERATIONS.extend([
                    {"task_id": _STRING, "mentions": {"type": "array", "items": _STRING, "maxItems": 5}, "context": _STRING}, ["task_id", "mentions"]),
     _workflow_tool("annotate_ontology_version", "Save a factual version summary, limitations and question-to-object links. Object links are validated; task outcomes come from real trajectories.",
                    {"version": _STRING, "summary": _STRING,
-                    "limitations": {"type": "array", "items": _STRING}, "links": _ARRAY},
+                    "limitations": {"type": "array", "items": _STRING}, "links": _QUESTION_LINKS},
                    ["version", "summary", "limitations", "links"]),
 ])
