@@ -21,7 +21,7 @@ import os
 import sys
 from pathlib import Path
 
-from config import get_config, Config
+from config import get_config, Config, openai_compatible_endpoint, override_url_port
 from evaluate import UnifiedEvaluator
 
 # Configure logging
@@ -120,20 +120,11 @@ Examples:
     os.environ["DDR_LOG_LEVEL"] = log_level
     logging.getLogger().setLevel(getattr(logging, log_level.upper(), logging.INFO))
 
-    # Build vLLM URL from config (supports both local VLLM and cloud APIs like DeepSeek)
-    vllm_base = eval_base_url
     vllm_port = config.provider.vllm_port or 0
-
-    if vllm_port and vllm_port > 0:
-        # Local VLLM: strip existing port from base_url, append configured port
-        if "://" in vllm_base:
-            protocol, host_part = vllm_base.split("://", 1)
-            host = host_part.split(":")[0]
-            vllm_base = f"{protocol}://{host}:{vllm_port}"
-        else:
-            vllm_base = f"http://{vllm_base}:{vllm_port}"
-
-    vllm_url = f"{vllm_base.rstrip('/')}/v1/chat/completions"
+    if vllm_port > 0 and "://" not in eval_base_url:
+        eval_base_url = f"http://{eval_base_url}"
+    vllm_base = override_url_port(eval_base_url, vllm_port)
+    vllm_url = openai_compatible_endpoint(vllm_base, "chat/completions")
 
     print(f"\n{'='*60}")
     print(f"DDR_Bench Evaluation")
