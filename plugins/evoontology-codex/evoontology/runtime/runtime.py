@@ -64,13 +64,14 @@ class SemanticLayer:
         """Load the active version, or an explicit version when given.
 
         Explicit version selection lets Candidate evaluations run without
-        switching ``active.json``.
+        switching ``active.json``. Only an uninitialized workspace without an
+        explicit version falls back to the empty store; a missing explicit
+        version raises ``FileNotFoundError``.
         """
+        if version:
+            return cls(SemanticStore.load_version(store_path, version))
         try:
-            if version:
-                store = SemanticStore.load_version(store_path, version)
-            else:
-                store = SemanticStore.load(store_path)
+            store = SemanticStore.load(store_path)
         except FileNotFoundError:
             store = cls._empty_store()
         return cls(store)

@@ -1,6 +1,11 @@
 """Runtime tests: browse / resolve / manifest, including the uninitialized case."""
 
+import json
+
+import pytest
+
 from evoontology import SemanticLayer, SemanticStore, ensure_workspace
+from evoontology.runtime.mcp_server import SemanticMCPServer
 
 SAMPLE = {
     "terms": [
@@ -134,6 +139,21 @@ def test_uninitialized(tmp_path):
     assert "uninitialized" in layer.manifest()
     assert layer.browse(query="x")["status"] == "ok"
     assert layer.browse(query="x")["items"] == []
+
+
+def test_missing_explicit_version_is_an_error_not_an_empty_layer(tmp_path):
+    _init(tmp_path)
+    with pytest.raises(FileNotFoundError):
+        SemanticLayer.load(str(tmp_path), version="ontology_v9")
+
+    response = SemanticMCPServer(str(tmp_path)).dispatch(
+        "tools/call",
+        {"name": "resolve_semantics",
+         "arguments": {"mentions": ["net_income"], "version": "ontology_v9"}},
+    )
+    payload = json.loads(response["content"][0]["text"])
+    assert response["isError"]
+    assert "ontology_v9" in payload["message"]
 
 
 def test_execute_dispatch(tmp_path):
