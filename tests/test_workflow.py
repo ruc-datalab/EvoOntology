@@ -56,6 +56,15 @@ def test_explicit_scope_excludes_old_questions_without_deleting_history(workflow
     assert workflow.status()["question_count"] == 3
 
 
+def test_explicit_scope_keeps_the_id_of_a_resupplied_question(workflow):
+    workflow.prepare(questions=[{"id": "rev", "question": "Total revenue?"}])
+    result = workflow.prepare(questions=["Total revenue?"], supplied_only=True)
+    assert [q["id"] for q in result["questions"]] == ["rev"]
+    stored = json.loads((workflow.root / "workload" / "questions.json").read_text())
+    assert [q["id"] for q in stored["questions"]] == ["rev"]
+    assert workflow.start_task("rev")["question_id"] == "rev"
+
+
 def test_fixed_split_does_not_collect_unregistered_questions(workflow):
     project = workflow.status()["project"]
     project.update(mode="fixed_split", boundary={"construction_question_ids": ["q1"]})

@@ -105,6 +105,7 @@ class ProjectWorkflow:
                                        "generated" if t.get("origin") == "generated" else "history"))
             candidates += [(q, "generated") for q in generated or []]
         merged = {question_key(q["question"]): q for q in existing}
+        stored_by_key = {question_key(q["question"]): q for q in stored}
         priority = {"user": 0, "history": 1, "generated": 2}
         for raw, origin in candidates:
             if isinstance(raw, str):
@@ -123,6 +124,11 @@ class ProjectWorkflow:
             if not key:
                 raise ValueError("Question text contains no usable content")
             prior = merged.get(key)
+            if prior is None and key in stored_by_key:
+                # A stored question excluded from this selection keeps its ID
+                # and provenance when it is supplied again.
+                kept = stored_by_key[key]
+                prior = merged[key] = {**kept, "provenance": list(kept["provenance"])}
             provenance = {"origin": origin, "source_ref": raw.get("source_ref", "current request"),
                           "evidence_refs": raw.get("evidence_refs", [])}
             if prior:
