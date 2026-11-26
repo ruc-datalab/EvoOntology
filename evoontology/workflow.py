@@ -81,11 +81,12 @@ class ProjectWorkflow:
         if fixed:
             # Imported fixed-split IDs must be explicitly enumerated at setup.
             # Do not discover history or synthesize tasks across a benchmark boundary.
-            allowed = set(project["boundary"].get("construction_question_ids", []))
+            # Stored question IDs are strings; registered IDs may be integers.
+            allowed = {str(i) for i in project["boundary"].get("construction_question_ids", [])}
             if candidates and not allowed:
                 raise ValueError("Register boundary.construction_question_ids before importing fixed-split questions")
             for q, _ in candidates:
-                if not isinstance(q, dict) or q.get("id") not in allowed:
+                if not isinstance(q, dict) or q.get("id") is None or str(q["id"]) not in allowed:
                     raise ValueError("Question is outside the registered construction boundary")
             existing = [q for q in existing if q["id"] in allowed]
             skipped.append("fixed_split: automatic history and generated questions disabled")
