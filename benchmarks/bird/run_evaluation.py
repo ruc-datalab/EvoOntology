@@ -9,6 +9,7 @@ import sqlite3
 import subprocess
 import sys
 import time
+from collections import Counter
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
@@ -96,7 +97,9 @@ def evaluate_sql(pred_sql: str, gold_sql: str, db_path: str) -> tuple:
 
         conn.close()
 
-        ex = (sorted(pred_rows) == sorted(gold_rows))
+        # Compare as multisets: sorting raises TypeError on rows that mix NULL
+        # with values (or ints with text), which scored correct answers as wrong.
+        ex = Counter(pred_rows) == Counter(gold_rows)
 
         if not ex:
             return (False, 0.0)
