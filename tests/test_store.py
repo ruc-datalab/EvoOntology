@@ -64,6 +64,22 @@ def test_candidate_publish_and_promote(tmp_path):
     assert "t2" in store.terms
 
 
+def test_promote_candidate_onto_itself_keeps_the_version(tmp_path):
+    ensure_workspace(str(tmp_path))
+    _write_v0(tmp_path)
+    SemanticStore.save_version(str(tmp_path), "v0-c1", SAMPLE)
+
+    assert SemanticStore.promote(str(tmp_path), "v0-c1", "v0-c1") == "v0-c1"
+    assert SemanticStore.active_version(str(tmp_path)) == "v0-c1"
+    assert SemanticStore.load(str(tmp_path)).counts() == {
+        "terms": len(SAMPLE["terms"]),
+        "mappings": len(SAMPLE["mappings"]),
+        "relations": len(SAMPLE["relations"]),
+        "constraints": len(SAMPLE["constraints"]),
+        "evidence": len(SAMPLE["evidence"]),
+    }
+
+
 def test_rollback_keeps_parent(tmp_path):
     ensure_workspace(str(tmp_path))
     _write_v0(tmp_path)

@@ -182,9 +182,10 @@ class SemanticStore:
         if not src.is_dir():
             raise FileNotFoundError(f"Candidate version missing: {src}")
         dst = root / "versions" / new_version
-        if dst.exists():
-            shutil.rmtree(dst)
-        shutil.copytree(src, dst)
+        if new_version != candidate_version:
+            if dst.exists():
+                shutil.rmtree(dst)
+            shutil.copytree(src, dst)
         cls.set_active(str(root), new_version)
         return new_version
 
