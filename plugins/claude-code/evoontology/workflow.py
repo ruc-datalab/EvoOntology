@@ -307,6 +307,10 @@ class ProjectWorkflow:
         for family in (store.terms, store.mappings, store.relations, store.constraints, store.evidence):
             known.update(family)
         questions = read_json(self.root / "workload" / "questions.json", {"questions": []})["questions"]
+        if links:
+            # Other data sources' questions stay saved and may share an ID.
+            source = source_key(load_project(self.root)["data_source"])
+            questions = [q for q in questions if source_key(q.get("data_source")) == source]
         question_ids = {q["id"] for q in questions}
         for link in links:
             if link.get("question_id") not in question_ids:

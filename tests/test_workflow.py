@@ -113,6 +113,9 @@ def test_switching_data_source_keeps_other_sources_questions(workflow, tmp_path)
     assert {q["id"] for q in result["questions"]} == {q["id"] for q in first}
     task = workflow.start_task(first[0]["id"])
     assert task["data_source"] == project["data_source"]
+    shared = next(q["id"] for q in first if q["question"] == "Revenue?")
+    report = workflow.annotate("ontology_v0", "", [], [{"question_id": shared, "object_ids": []}])
+    assert [q["data_source"] for q in report["questions"]] == [project["data_source"]]
 
 
 def test_task_ids_cannot_escape_workspace(workflow):
