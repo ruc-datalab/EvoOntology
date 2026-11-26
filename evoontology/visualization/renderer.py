@@ -106,11 +106,21 @@ def visualize(
         active_version = None
 
     generated_at = datetime.now().astimezone().isoformat(timespec="seconds")
-    available_versions = SemanticStore.list_versions(root)
     schema_snapshot = build_schema_view()
+    available_versions: List[str] = []
+    unloadable: List[str] = []
     version_data: Dict[str, Any] = {}
-    for version_name in available_versions:
-        store = load_ontology(root, version_name)
+    for version_name in SemanticStore.list_versions(root):
+        try:
+            store = load_ontology(root, version_name)
+        except Exception as exc:
+            # One unloadable version (for example an incomplete or rejected
+            # Candidate) must not hide every other version from the explorer.
+            if version_name == selected:
+                raise
+            unloadable.append(f"version {version_name!r} skipped: could not be loaded ({exc})")
+            continue
+        available_versions.append(version_name)
         content = build_content_elements(store)
         version_data[version_name] = {
             "meta": {
@@ -125,6 +135,8 @@ def visualize(
             "tools": build_tool_view(store),
             "experience": build_experience(root, version_name),
         }
+    for entry in version_data.values():
+        entry["meta"]["warnings"].extend(unloadable)
 
     data = {
         "meta": {
