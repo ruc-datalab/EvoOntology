@@ -560,6 +560,25 @@ def test_generated_html_is_offline(workspace):
         assert marker not in html
 
 
+def test_record_text_cannot_break_out_of_the_data_script(workspace):
+    records = _records()
+    records["terms"] = [dict(item) for item in records["terms"]]
+    text = "HTML stored in a column: <!--<script> and </script><b>"
+    records["terms"][0]["definition"] = text
+    SemanticStore.save_version(workspace, "ontology_v1", records)
+
+    html = visualize(workspace=workspace, version="ontology_v1",
+                     open_browser=False).read_text(encoding="utf-8")
+
+    start = html.index("window.EVO_DATA = ") + len("window.EVO_DATA = ")
+    end = html.index(";\n</script>", start)
+    payload = html[start:end]
+    assert "<" not in payload
+    data = json.loads(payload)
+    nodes = data["versions"]["ontology_v1"]["content"]["nodes"]
+    assert any(node["data"].get("definition") == text for node in nodes)
+
+
 # ---- 7. initial build without evolution history -----------------------------
 
 def test_initial_build_without_evolution_renders(workspace):

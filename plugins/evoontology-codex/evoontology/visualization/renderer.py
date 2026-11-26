@@ -486,7 +486,10 @@ def render_html(data: Dict[str, Any]) -> str:
     template = _read_package_text("template.html")
     cytoscape_js = _read_package_text(Path("vendor") / "cytoscape.min.js")
     payload = json.dumps(data, ensure_ascii=False, separators=(",", ":"))
-    payload = payload.replace("</", "<\\/")  # keep </script> safe inside JSON
+    # Escape every "<" so record text such as "</script>" or "<!--<script>"
+    # cannot end the data script early or switch the HTML parser into the
+    # double-escaped script state that swallows the explorer's own code.
+    payload = payload.replace("<", "\\u003c")
     title = "EvoOntology · Ontology Layer Explorer"
     return (
         template
