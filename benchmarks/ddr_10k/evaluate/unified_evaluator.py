@@ -23,6 +23,8 @@ logger = logging.getLogger(__name__)
 class UnifiedEvaluator(BaseEvaluator):
     """Unified evaluator supporting all scenarios (MIMIC, 10-K, GLOBEM)."""
 
+    _CONTEXT_QUALITY_LABELS = ("CORRECT_INFO", "INCORRECT_INFO", "INSUFFICIENT_INFO")
+
     def __init__(self, scenario: str = "mimic", **kwargs):
         entity_prefix = get_entity_prefix(scenario)
         super().__init__(scenario=scenario, entity_prefix=entity_prefix, **kwargs)
@@ -209,13 +211,19 @@ class UnifiedEvaluator(BaseEvaluator):
         except (json.JSONDecodeError, KeyError) as e:
             logger.warning(f"Failed to parse result: {e}")
             # Fallback
+            # Prefer the context_quality field of a truncated or wrapped JSON
+            # reply. Match labels on word boundaries: a plain substring check
+            # finds "CORRECT_INFO" inside "INCORRECT_INFO".
             upper = result.upper()
-            if "CORRECT_INFO" in upper:
-                quality = "CORRECT_INFO"
-            elif "INCORRECT_INFO" in upper:
-                quality = "INCORRECT_INFO"
+            field = re.search(r'"CONTEXT_QUALITY"\s*:\s*"(\w+)"', upper)
+            if field and field.group(1) in self._CONTEXT_QUALITY_LABELS:
+                quality = field.group(1)
             else:
-                quality = "INSUFFICIENT_INFO"
+                quality = next(
+                    (label for label in self._CONTEXT_QUALITY_LABELS
+                     if re.search(rf"\b{label}\b", upper)),
+                    "INSUFFICIENT_INFO",
+                )
 
             return {
                 "original_question": question,
