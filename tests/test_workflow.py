@@ -65,6 +65,16 @@ def test_explicit_scope_keeps_the_id_of_a_resupplied_question(workflow):
     assert workflow.start_task("rev")["question_id"] == "rev"
 
 
+def test_fixed_split_uses_the_registered_id_for_a_stored_question(workflow):
+    workflow.prepare(questions=["Total revenue?"])
+    project = workflow.status()["project"]
+    project.update(mode="fixed_split", boundary={"construction_question_ids": ["q1"]})
+    workflow.configure(project, replace=True)
+    first = workflow.prepare(questions=[{"id": "q1", "question": "Total revenue?"}])
+    assert [q["id"] for q in first["questions"]] == ["q1"]
+    assert [q["id"] for q in workflow.prepare()["questions"]] == ["q1"]
+
+
 def test_fixed_split_does_not_collect_unregistered_questions(workflow):
     project = workflow.status()["project"]
     project.update(mode="fixed_split", boundary={"construction_question_ids": ["q1"]})

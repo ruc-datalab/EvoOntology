@@ -124,10 +124,11 @@ class ProjectWorkflow:
             if not key:
                 raise ValueError("Question text contains no usable content")
             prior = merged.get(key)
-            if prior is None and key in stored_by_key:
+            kept = stored_by_key.get(key)
+            if prior is None and kept and (raw.get("id") in (None, "") or str(raw["id"]) == kept["id"]):
                 # A stored question excluded from this selection keeps its ID
-                # and provenance when it is supplied again.
-                kept = stored_by_key[key]
+                # and provenance when it is supplied again. An explicit new ID
+                # (such as a registered fixed-split ID) still replaces it.
                 prior = merged[key] = {**kept, "provenance": list(kept["provenance"])}
             provenance = {"origin": origin, "source_ref": raw.get("source_ref", "current request"),
                           "evidence_refs": raw.get("evidence_refs", [])}
