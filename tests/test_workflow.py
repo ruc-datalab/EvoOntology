@@ -69,13 +69,13 @@ def test_fixed_split_does_not_collect_unregistered_questions(workflow):
 
 def test_fixed_split_integer_ids_stay_in_the_workload(workflow):
     project = workflow.status()["project"]
-    project.update(mode="fixed_split", boundary={"construction_question_ids": [1, 2]})
+    project.update(mode="fixed_split", boundary={"construction_question_ids": [0, 1]})
     workflow.configure(project, replace=True)
-    first = workflow.prepare(questions=[{"id": 1, "question": "One"},
-                                        {"id": 2, "question": "Two"}])
-    assert sorted(q["id"] for q in first["questions"]) == ["1", "2"]
+    first = workflow.prepare(questions=[{"id": 0, "question": "Zero"},
+                                        {"id": 1, "question": "One"}])
+    assert sorted(q["id"] for q in first["questions"]) == ["0", "1"]
     again = workflow.prepare()
-    assert sorted(q["id"] for q in again["questions"]) == ["1", "2"]
+    assert sorted(q["id"] for q in again["questions"]) == ["0", "1"]
     assert again["status"] == "ready"
 
 
