@@ -705,6 +705,24 @@ def test_visualize_is_read_only(workspace):
 
 # ---- error behavior --------------------------------------------------------------
 
+def test_unloadable_version_does_not_break_the_explorer(workspace):
+    broken = Path(workspace) / "versions" / "v0-c1"
+    broken.mkdir()
+    (broken / "terms.json").write_text("[]", encoding="utf-8")
+
+    path = visualize(workspace=workspace, open_browser=False)
+
+    html = path.read_text(encoding="utf-8")
+    start = html.index("window.EVO_DATA = ") + len("window.EVO_DATA = ")
+    data = json.loads(html[start:html.index(";\n</script>", start)])
+    assert "v0-c1" not in data["meta"]["versions"]
+    assert "v0-c1" not in data["versions"]
+    active = data["meta"]["active_version"]
+    assert any("v0-c1" in warning for warning in data["versions"][active]["meta"]["warnings"])
+    with pytest.raises(FileNotFoundError):
+        visualize(workspace=workspace, version="v0-c1", open_browser=False)
+
+
 def test_missing_workspace_error(tmp_path):
     with pytest.raises(FileNotFoundError, match="workspace not initialized"):
         visualize(workspace=tmp_path / "nowhere", open_browser=False)
