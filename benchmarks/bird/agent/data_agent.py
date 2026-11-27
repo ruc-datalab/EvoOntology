@@ -392,11 +392,17 @@ class BIRDReActAgent:
 
 
 
+        # A fenced block after FINISH: spans several lines; take its body.
         match = re.search(
-            r'(?im)FINISH\s*:\s*(SELECT\s+.+?)(?:\n\n|\n\s*\n|\Z)',
+            r'(?is)FINISH\s*:\s*```(?:sql)?\s*(.+?)\s*```',
             normalized,
-            re.DOTALL,
         )
+        if not match:
+            match = re.search(
+                r'(?im)FINISH\s*:\s*((?:SELECT|WITH)\s+.+?)(?:\n\n|\n\s*\n|\Z)',
+                normalized,
+                re.DOTALL,
+            )
         if not match:
 
             match = re.search(
