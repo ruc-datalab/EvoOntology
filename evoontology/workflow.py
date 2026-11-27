@@ -81,11 +81,12 @@ class ProjectWorkflow:
         if fixed:
             # Imported fixed-split IDs must be explicitly enumerated at setup.
             # Do not discover history or synthesize tasks across a benchmark boundary.
-            allowed = set(project["boundary"].get("construction_question_ids", []))
+            # Stored question IDs are strings; registered IDs may be integers.
+            allowed = {str(i) for i in project["boundary"].get("construction_question_ids", [])}
             if candidates and not allowed:
                 raise ValueError("Register boundary.construction_question_ids before importing fixed-split questions")
             for q, _ in candidates:
-                if not isinstance(q, dict) or q.get("id") not in allowed:
+                if not isinstance(q, dict) or q.get("id") is None or str(q["id"]) not in allowed:
                     raise ValueError("Question is outside the registered construction boundary")
             existing = [q for q in existing if q["id"] in allowed]
             skipped.append("fixed_split: automatic history and generated questions disabled")
@@ -131,7 +132,10 @@ class ProjectWorkflow:
                 if priority[origin] < priority[prior["origin"]]:
                     prior["origin"] = origin
                 continue
-            qid = str(raw.get("id") or "q_" + hashlib.sha256(key.encode()).hexdigest()[:16])
+            raw_id = raw.get("id")
+            # An explicit ID of 0 (BIRD question IDs start at 0) is still an ID.
+            qid = (str(raw_id) if raw_id not in (None, "")
+                   else "q_" + hashlib.sha256(key.encode()).hexdigest()[:16])
             safe_id(qid)
             if any(q["id"] == qid and question_key(q["question"]) != key for q in stored):
                 raise ValueError("Question ID already belongs to different text")

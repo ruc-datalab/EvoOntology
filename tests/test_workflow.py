@@ -67,6 +67,18 @@ def test_fixed_split_does_not_collect_unregistered_questions(workflow):
     assert [q["id"] for q in result["questions"]] == ["q1"]
 
 
+def test_fixed_split_integer_ids_stay_in_the_workload(workflow):
+    project = workflow.status()["project"]
+    project.update(mode="fixed_split", boundary={"construction_question_ids": [0, 1]})
+    workflow.configure(project, replace=True)
+    first = workflow.prepare(questions=[{"id": 0, "question": "Zero"},
+                                        {"id": 1, "question": "One"}])
+    assert sorted(q["id"] for q in first["questions"]) == ["0", "1"]
+    again = workflow.prepare()
+    assert sorted(q["id"] for q in again["questions"]) == ["0", "1"]
+    assert again["status"] == "ready"
+
+
 def test_real_sqlite_execution_recording_and_idempotence(workflow):
     q = workflow.prepare(questions=[{"question": "Total revenue?"}])["questions"][0]
     task = workflow.start_task(q["id"])
