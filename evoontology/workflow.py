@@ -67,8 +67,10 @@ class ProjectWorkflow:
         if not 1 <= limit <= 100:
             raise ValueError("limit must be between 1 and 100")
         path = self.root / "workload" / "questions.json"
-        existing = read_json(path, {"questions": []})["questions"]
-        existing = [q for q in existing if source_key(q.get("data_source")) == source_key(source)]
+        saved = read_json(path, {"questions": []})["questions"]
+        existing = [q for q in saved if source_key(q.get("data_source")) == source_key(source)]
+        # Questions recorded for other data sources stay in the saved workload.
+        other_sources = [q for q in saved if source_key(q.get("data_source")) != source_key(source)]
         stored = existing
         if supplied_only:
             existing = []
@@ -169,7 +171,7 @@ class ProjectWorkflow:
         # An explicit scope restriction affects this selection, not saved history.
         catalog = {question_key(q["question"]): q for q in stored}
         catalog.update({question_key(q["question"]): q for q in ordered})
-        write_json(path, {"questions": list(catalog.values()), "updated_at": now_iso()})
+        write_json(path, {"questions": other_sources + list(catalog.values()), "updated_at": now_iso()})
         return {"status": "ready" if selected else "needs_questions", "questions": selected,
                 "counts": {o: sum(q["origin"] == o for q in selected) for o in priority},
                 "coverage_gaps": sorted(set(topics or []) - covered), "notes": skipped,
@@ -179,7 +181,9 @@ class ProjectWorkflow:
     def start_task(self, question_id: str, version: str = "active", batch_id: str = "") -> dict:
         project = load_project(self.root)
         questions = read_json(self.root / "workload" / "questions.json", {"questions": []})["questions"]
-        question = next((q for q in questions if q["id"] == question_id), None)
+        matches = [q for q in questions if q["id"] == question_id]
+        question = next((q for q in matches if source_key(q["data_source"]) == source_key(project["data_source"])),
+                        matches[0] if matches else None)
         if question is None:
             raise ValueError("Unknown question_id; prepare the workload first")
         if source_key(question["data_source"]) != source_key(project["data_source"]):
@@ -314,6 +318,10 @@ class ProjectWorkflow:
         for family in (store.terms, store.mappings, store.relations, store.constraints, store.evidence):
             known.update(family)
         questions = read_json(self.root / "workload" / "questions.json", {"questions": []})["questions"]
+        if links:
+            # Other data sources' questions stay saved and may share an ID.
+            source = source_key(load_project(self.root)["data_source"])
+            questions = [q for q in questions if source_key(q.get("data_source")) == source]
         question_ids = {q["id"] for q in questions}
         for link in links:
             if link.get("question_id") not in question_ids:

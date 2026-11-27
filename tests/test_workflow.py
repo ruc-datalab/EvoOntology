@@ -130,6 +130,25 @@ def test_cannot_finish_an_unexecuted_task(workflow):
     workflow.finish_task(task["task_id"], "No access", status="interrupted")
 
 
+def test_switching_data_source_keeps_other_sources_questions(workflow, tmp_path):
+    project = workflow.status()["project"]
+    first = workflow.prepare(questions=["Revenue?", "Top regions?"])["questions"]
+    other_db = tmp_path / "other.sqlite"
+    sqlite3.connect(other_db).close()
+    workflow.configure({**project, "data_source": str(other_db)}, replace=True)
+    workflow.prepare(questions=["Revenue?", "Churn rate?"])
+    assert workflow.status()["question_count"] == 4
+
+    workflow.configure(project, replace=True)
+    result = workflow.prepare()
+    assert {q["id"] for q in result["questions"]} == {q["id"] for q in first}
+    task = workflow.start_task(first[0]["id"])
+    assert task["data_source"] == project["data_source"]
+    shared = next(q["id"] for q in first if q["question"] == "Revenue?")
+    report = workflow.annotate("ontology_v0", "", [], [{"question_id": shared, "object_ids": []}])
+    assert [q["data_source"] for q in report["questions"]] == [project["data_source"]]
+
+
 def test_task_ids_cannot_escape_workspace(workflow):
     with pytest.raises(ValueError, match="ID must"):
         workflow.finish_task("../../escape", "")
