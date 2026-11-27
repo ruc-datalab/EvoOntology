@@ -4,6 +4,7 @@
 import asyncio
 import json
 import re
+import sqlite3
 import sys
 import time
 from datetime import datetime
@@ -357,14 +358,13 @@ class BIRDReActAgent:
                     })
         return tools
 
+    _FINISH_MARKER_RE = re.compile(r"(?im)^\s*(?:#{1,6}\s*)?FINISH\s*:\s*")
+
     @classmethod
     def _has_finish_marker(cls, content: str) -> bool:
         """Detect FINISH marker, handling markdown bold formatting."""
         normalized = cls._normalize_finish_marker(str(content or ""))
-        return bool(re.search(
-            r"(?im)^\s*(?:#{1,6}\s*)?FINISH\s*:",
-            normalized,
-        ))
+        return bool(cls._FINISH_MARKER_RE.search(normalized))
 
     # Regex to normalize markdown bold/formatting around FINISH marker.
     # Handles: **FINISH:**, **FINISH**:, **FINISH** :, FINISH:**
@@ -386,33 +386,32 @@ class BIRDReActAgent:
         # Normalize markdown bold around FINISH: "**FINISH:**" → "FINISH:"
         # deepseek-v4-flash frequently outputs **FINISH:** SQL which breaks
         # the regex below because * after : doesn't match \s*
-        normalized = BIRDReActAgent._normalize_finish_marker(content or "")
-
-
-
-
-
-        # A fenced block after FINISH: spans several lines; take its body.
-        match = re.search(
-            r'(?is)FINISH\s*:\s*```(?:sql)?\s*(.+?)\s*```',
-            normalized,
-        )
-        if not match:
-            match = re.search(
-                r'(?im)FINISH\s*:\s*((?:SELECT|WITH)\s+.+?)(?:\n\n|\n\s*\n|\Z)',
-                normalized,
-                re.DOTALL,
-            )
-        if not match:
-
-            match = re.search(
-                r'(?im)FINISH\s*:\s*([^\n]+)',
-                normalized,
-            )
-        if not match:
+        normalized = BIRDReActAgent._normalize_finish_marker(content)
+        marker = BIRDReActAgent._FINISH_MARKER_RE.search(normalized)
+        if not marker:
+            marker = re.search(r"(?i)FINISH\s*:\s*", normalized)
+        if not marker:
             return ""
 
-        sql = match.group(1).strip()
+        body = normalized[marker.end():]
+        fenced = re.match(r"(?is)```(?:sql)?\s*(.+?)\s*```", body)
+        if fenced:
+            sql = fenced.group(1)
+        elif re.match(r"(?i)WITH\s+", body):
+            # Blank lines can occur inside a CTE or before its main SELECT.
+            # Honor an explicit SQL terminator without splitting quoted text.
+            sql = body
+            for terminator in re.finditer(";", body):
+                statement = body[:terminator.end()]
+                if sqlite3.complete_statement(statement):
+                    sql = statement
+                    break
+        elif re.match(r"(?i)SELECT\s+", body):
+            sql = re.split(r"\n\s*\n", body, maxsplit=1)[0]
+        else:
+            sql = body.partition("\n")[0]
+
+        sql = sql.strip()
         # Strip code fences and inline code backticks
         sql = re.sub(r'^```(?:sql)?\s*', '', sql)
         sql = re.sub(r'\s*```$', '', sql)

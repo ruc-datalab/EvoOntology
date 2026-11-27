@@ -14,14 +14,13 @@ import os
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # project root -> evoontology package
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from agent.data_agent import BIRDReActAgent
-from config import ExperimentConfig
-from run_evaluation import _make_entry, run_single_question
-from tceo.runtime import BIRDSemanticLayer
-from tool_server.mcp_client import MCPClientManager
+from benchmarks.bird.agent.data_agent import BIRDReActAgent
+from benchmarks.bird.config import ExperimentConfig
+from benchmarks.bird.run_evaluation import _make_entry, run_single_question
+from benchmarks.bird.tceo.runtime import BIRDSemanticLayer
+from benchmarks.bird.tool_server.mcp_client import MCPClientManager
 
 
 def _write_result(result_path: str, entry: dict, trace: dict | None) -> None:

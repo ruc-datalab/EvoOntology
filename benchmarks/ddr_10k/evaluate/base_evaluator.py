@@ -300,13 +300,16 @@ class BaseEvaluator:
                     "session_stats_file": ""
                 }
 
-                # Load insights CSV
-                # A retried run leaves earlier attempts in the same directory.
-                # Use the newest file (names carry a %Y%m%d_%H%M%S timestamp),
-                # not whichever one the filesystem happens to list first.
-                insights_files = sorted(entity_dir.glob("insights*.csv"))
-                if insights_files:
-                    insights_file = insights_files[-1]
+                # Use the run recorded by the newest session summary. Both files
+                # have the same timestamp, but a run can produce no insights.
+                session_stats_file = max(entity_dir.glob("session_stats*.json"), default=None)
+                if session_stats_file is not None:
+                    attempt = session_stats_file.stem[len("session_stats"):]
+                    insights_file = entity_dir / f"insights{attempt}.csv"
+                else:
+                    insights_file = max(entity_dir.glob("insights*.csv"), default=None)
+
+                if insights_file is not None and insights_file.is_file():
                     try:
                         df = pd.read_csv(insights_file, dtype=str, keep_default_na=False)
                         if 'insight' in df.columns:
@@ -320,9 +323,7 @@ class BaseEvaluator:
                         logger.error(f"Error reading insights file {insights_file}: {e}")
 
                 # Load session stats JSON
-                session_stats_files = sorted(entity_dir.glob("session_stats*.json"))
-                if session_stats_files:
-                    session_stats_file = session_stats_files[-1]
+                if session_stats_file is not None:
                     try:
                         with open(session_stats_file, 'r', encoding='utf-8') as f:
                             session_data = json.load(f)

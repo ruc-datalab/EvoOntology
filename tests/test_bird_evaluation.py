@@ -44,3 +44,9 @@ def test_row_order_is_ignored_but_rows_must_match(run_evaluation, db_path):
     gold = "SELECT a, b FROM t ORDER BY b"
     assert run_evaluation.evaluate_sql("SELECT a, b FROM t ORDER BY b DESC", gold, db_path)[0] is True
     assert run_evaluation.evaluate_sql("SELECT a, b FROM t WHERE a IS NOT NULL", gold, db_path)[0] is False
+
+
+def test_duplicate_rows_are_counted(run_evaluation, db_path):
+    gold = "SELECT a FROM t"
+    with_duplicates = f"{gold} UNION ALL {gold}"
+    assert run_evaluation.evaluate_sql(with_duplicates, gold, db_path) == (False, 0.0)

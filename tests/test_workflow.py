@@ -149,6 +149,27 @@ def test_switching_data_source_keeps_other_sources_questions(workflow, tmp_path)
     assert [q["data_source"] for q in report["questions"]] == [project["data_source"]]
 
 
+def test_experience_report_keeps_same_id_tasks_scoped_to_the_data_source(workflow, tmp_path):
+    project = workflow.status()["project"]
+    original = workflow.prepare(questions=["Revenue?"])["questions"][0]
+    first_task = workflow.start_task(original["id"])
+    workflow.finish_task(first_task["task_id"], "A", status="interrupted")
+
+    other_db = tmp_path / "other.sqlite"
+    sqlite3.connect(other_db).close()
+    workflow.configure({**project, "data_source": str(other_db)}, replace=True)
+    other = workflow.prepare(questions=["Revenue?"])["questions"][0]
+    assert other["id"] == original["id"]
+    second_task = workflow.start_task(other["id"])
+    workflow.finish_task(second_task["task_id"], "B", status="interrupted")
+    workflow.annotate("ontology_v0", "", [], [{"question_id": other["id"], "object_ids": []}])
+
+    report = build_experience(workflow.root, "ontology_v0")
+    assert len(report["questions"]) == 1
+    assert report["questions"][0]["data_source"] == str(other_db)
+    assert [task["task_id"] for task in report["questions"][0]["tasks"]] == [second_task["task_id"]]
+
+
 def test_task_ids_cannot_escape_workspace(workflow):
     with pytest.raises(ValueError, match="ID must"):
         workflow.finish_task("../../escape", "")

@@ -349,10 +349,22 @@ def build_experience(root: Path, version: str) -> dict:
             task_versions.add(run.get("current_candidate"))
     public_tasks = [t for t in trajectories if t.get("ontology_version") in task_versions
                     and t.get("split") not in {"validation", "heldout", "test"}]
-    report["questions"] = [{**q, "object_ids": links.get(q["id"], {}).get("object_ids", []),
-                             "tasks": [{k: t.get(k) for k in ("task_id", "task_status", "final_answer", "errors")}
-                                       for t in public_tasks if t.get("question_id") == q["id"]]}
-                            for q in questions if q["id"] in links or any(t.get("question_id") == q["id"] for t in public_tasks)]
+    tasks_by_question = {}
+    for task in public_tasks:
+        key = source_key(task.get("data_source")), task.get("question_id")
+        tasks_by_question.setdefault(key, []).append(
+            {k: task.get(k) for k in ("task_id", "task_status", "final_answer", "errors")}
+        )
+    report["questions"] = []
+    for question in questions:
+        qid = question["id"]
+        tasks = tasks_by_question.get((source_key(question.get("data_source")), qid), [])
+        if qid in links or tasks:
+            report["questions"].append({
+                **question,
+                "object_ids": links.get(qid, {}).get("object_ids", []),
+                "tasks": tasks,
+            })
     report["runs"] = []
     for path in sorted((root / "evolution").glob("run_*/run.json"),
                        key=lambda p: int(p.parent.name.split("_")[-1])):

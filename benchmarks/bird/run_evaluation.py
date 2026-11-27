@@ -23,15 +23,20 @@ if hasattr(sys.stdout, "reconfigure"):
 if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # project root -> evoontology package
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from agent.models import EvalResult
-from config import DB_DIR, RESULTS_DIR, SEMANTIC_LAYER_DIR, ExperimentConfig, get_dataset_config
+from benchmarks.bird.agent.models import EvalResult
+from benchmarks.bird.config import (
+    DB_DIR,
+    RESULTS_DIR,
+    SEMANTIC_LAYER_DIR,
+    ExperimentConfig,
+    get_dataset_config,
+)
 
 VES_EVAL_RUNS = 4
-# Per-query limit when scoring, as in the official BIRD evaluator. The scoring
-# runs synchronously, so asyncio.wait_for(--timeout) cannot interrupt it.
+# Scoring is synchronous. This limit applies to each SQLite statement separately
+# from the whole-question timeout enforced by the parallel worker's parent.
 SQL_EXEC_TIMEOUT = 30.0
 
 
@@ -200,7 +205,7 @@ async def run_single_question(question_data: dict, config: ExperimentConfig,
                 pass
 
 
-    from agent.llm_providers import create_llm_provider
+    from benchmarks.bird.agent.llm_providers import create_llm_provider
     llm = create_llm_provider(**llm_kwargs)
 
 
@@ -513,9 +518,9 @@ async def main():
     if args.save_traces:
         print("Save traces: ON")
 
-    from agent.data_agent import BIRDReActAgent
-    from tceo.runtime import BIRDSemanticLayer
-    from tool_server.mcp_client import MCPClientManager
+    from benchmarks.bird.agent.data_agent import BIRDReActAgent
+    from benchmarks.bird.tceo.runtime import BIRDSemanticLayer
+    from benchmarks.bird.tool_server.mcp_client import MCPClientManager
 
 
     gold_lookup: dict[str, str] = {}

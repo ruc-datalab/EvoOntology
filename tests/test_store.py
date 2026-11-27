@@ -80,6 +80,17 @@ def test_promote_candidate_onto_itself_keeps_the_version(tmp_path):
     }
 
 
+def test_promote_keeps_the_version_when_target_is_a_case_alias(tmp_path):
+    ensure_workspace(str(tmp_path))
+    SemanticStore.save_version(str(tmp_path), "Candidate", SAMPLE)
+    if not (tmp_path / "versions" / "candidate").is_dir():
+        pytest.skip("version directory is case-sensitive")
+
+    assert SemanticStore.promote(str(tmp_path), "Candidate", "candidate") == "candidate"
+    assert (tmp_path / "versions" / "Candidate").is_dir()
+    assert "t1" in SemanticStore.load(str(tmp_path)).terms
+
+
 def test_rollback_keeps_parent(tmp_path):
     ensure_workspace(str(tmp_path))
     _write_v0(tmp_path)
