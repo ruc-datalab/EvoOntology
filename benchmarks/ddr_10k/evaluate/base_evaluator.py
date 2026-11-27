@@ -301,9 +301,12 @@ class BaseEvaluator:
                 }
 
                 # Load insights CSV
-                insights_files = list(entity_dir.glob("insights*.csv"))
+                # A retried run leaves earlier attempts in the same directory.
+                # Use the newest file (names carry a %Y%m%d_%H%M%S timestamp),
+                # not whichever one the filesystem happens to list first.
+                insights_files = sorted(entity_dir.glob("insights*.csv"))
                 if insights_files:
-                    insights_file = insights_files[0]
+                    insights_file = insights_files[-1]
                     try:
                         df = pd.read_csv(insights_file, dtype=str, keep_default_na=False)
                         if 'insight' in df.columns:
@@ -317,9 +320,9 @@ class BaseEvaluator:
                         logger.error(f"Error reading insights file {insights_file}: {e}")
 
                 # Load session stats JSON
-                session_stats_files = list(entity_dir.glob("session_stats*.json"))
+                session_stats_files = sorted(entity_dir.glob("session_stats*.json"))
                 if session_stats_files:
-                    session_stats_file = session_stats_files[0]
+                    session_stats_file = session_stats_files[-1]
                     try:
                         with open(session_stats_file, 'r', encoding='utf-8') as f:
                             session_data = json.load(f)
