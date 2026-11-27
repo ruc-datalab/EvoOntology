@@ -30,6 +30,9 @@ from agent.models import EvalResult
 from config import DB_DIR, RESULTS_DIR, SEMANTIC_LAYER_DIR, ExperimentConfig, get_dataset_config
 
 VES_EVAL_RUNS = 4
+# Per-query limit when scoring, as in the official BIRD evaluator. The scoring
+# runs synchronously, so asyncio.wait_for(--timeout) cannot interrupt it.
+SQL_EXEC_TIMEOUT = 30.0
 
 
 def _kill_process_tree(pid: int, timeout: int = 10):
@@ -52,6 +55,16 @@ def _kill_process_tree(pid: int, timeout: int = 10):
         pass
 
 
+def _fetch_all(conn: sqlite3.Connection, sql: str) -> list:
+    """Run sql, interrupting it once SQL_EXEC_TIMEOUT seconds have passed."""
+    deadline = time.monotonic() + SQL_EXEC_TIMEOUT
+    conn.set_progress_handler(lambda: time.monotonic() > deadline, 10_000)
+    try:
+        return conn.execute(sql).fetchall()
+    finally:
+        conn.set_progress_handler(None, 0)
+
+
 def _time_sql(db_path: str, sql: str, runs: int = VES_EVAL_RUNS) -> float:
     """Implement time sql."""
     if not sql:
@@ -61,7 +74,7 @@ def _time_sql(db_path: str, sql: str, runs: int = VES_EVAL_RUNS) -> float:
         conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
         try:
             t0 = time.perf_counter()
-            conn.execute(sql).fetchall()
+            _fetch_all(conn, sql)
             elapsed = time.perf_counter() - t0
             times.append(elapsed)
         except Exception:
@@ -82,15 +95,13 @@ def evaluate_sql(pred_sql: str, gold_sql: str, db_path: str) -> tuple:
         conn.row_factory = sqlite3.Row
 
         try:
-            cursor = conn.execute(pred_sql)
-            pred_rows = [tuple(row) for row in cursor.fetchall()]
+            pred_rows = [tuple(row) for row in _fetch_all(conn, pred_sql)]
         except Exception:
             conn.close()
             return (False, 0.0)
 
         try:
-            cursor = conn.execute(gold_sql)
-            gold_rows = [tuple(row) for row in cursor.fetchall()]
+            gold_rows = [tuple(row) for row in _fetch_all(conn, gold_sql)]
         except Exception:
             conn.close()
             return (False, 0.0)
