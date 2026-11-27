@@ -127,7 +127,7 @@ def validate(
         validation = item.get("validation", {})
         if isinstance(validation, dict):
             val_evidence = validation.get("evidence", [])
-            if isinstance(val_evidence, list):
+            if isinstance(val_evidence, list) and val_evidence:
                 return val_evidence
         return item.get("evidence", [])
 

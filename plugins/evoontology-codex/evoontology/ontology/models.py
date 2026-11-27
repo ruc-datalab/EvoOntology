@@ -30,7 +30,7 @@ def _mapping_evidence_refs(data: Dict[str, Any]) -> List[str]:
     validation = data.get("validation", {})
     if isinstance(validation, dict):
         val_evidence = validation.get("evidence", [])
-        if isinstance(val_evidence, list):
+        if isinstance(val_evidence, list) and val_evidence:
             return [str(e) for e in val_evidence]
     return _evidence_refs(data)
 
